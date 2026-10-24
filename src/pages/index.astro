@@ -34,12 +34,12 @@ const featured = [...malls].sort((a, b) => openUnits(b).length - openUnits(a).le
   <section class="mb-12">
     <div class="mb-4 flex items-end justify-between">
       <h2 class="text-xl font-black">展店最多的品牌</h2>
-      <a href="/brands" class="text-sm text-brand">全部品牌 →</a>
+      <a href="/brands/" class="text-sm text-brand">全部品牌 →</a>
     </div>
     <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       {
         topBrands.map(({ b, n }) => (
-          <a href={`/brands/${b.id}`} class="flex items-center gap-3 rounded-2xl border border-line bg-card p-3 transition hover:border-brand">
+          <a href={`/brands/${b.id}/`} class="flex items-center gap-3 rounded-2xl border border-line bg-card p-3 transition hover:border-brand">
             <BrandAvatar name={b.name} />
             <span class="min-w-0">
               <b class="block truncate text-sm">{b.name}</b>
@@ -54,7 +54,7 @@ const featured = [...malls].sort((a, b) => openUnits(b).length - openUnits(a).le
   <section class="mb-12">
     <div class="mb-4 flex items-end justify-between">
       <h2 class="text-xl font-black">逛逛商場</h2>
-      <a href="/malls" class="text-sm text-brand">全部商場 →</a>
+      <a href="/malls/" class="text-sm text-brand">全部商場 →</a>
     </div>
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{featured.map((m) => <MallCard mall={m} />)}</div>
   </section>
@@ -63,13 +63,13 @@ const featured = [...malls].sort((a, b) => openUnits(b).length - openUnits(a).le
     <div>
       <h2 class="mb-4 text-xl font-black">依縣市瀏覽</h2>
       <div class="flex flex-wrap gap-2">
-        {cities.map(({ c, n }) => <a href={`/malls?city=${encodeURIComponent(c)}`} class="rounded-full border border-line bg-card px-4 py-2 text-sm hover:border-brand">{c} <span class="text-muted">{n}</span></a>)}
+        {cities.map(({ c, n }) => <a href={`/malls/?city=${encodeURIComponent(c)}`} class="rounded-full border border-line bg-card px-4 py-2 text-sm hover:border-brand">{c} <span class="text-muted">{n}</span></a>)}
       </div>
     </div>
     <div>
       <h2 class="mb-4 text-xl font-black">依業種瀏覽</h2>
       <div class="flex flex-wrap gap-2">
-        {categories.map((c) => <a href={`/categories#${c.code}`} class="rounded-full border border-line bg-card px-4 py-2 text-sm hover:border-brand">{c.icon} {c.name}</a>)}
+        {categories.map((c) => <a href={`/categories/#${c.code}`} class="rounded-full border border-line bg-card px-4 py-2 text-sm hover:border-brand">{c.icon} {c.name}</a>)}
       </div>
     </div>
   </section>

@@ -9,10 +9,10 @@ interface Props {
 const { title, description = '收錄全台百貨公司、購物中心、Outlet 的樓層與品牌資訊，每週更新。' } = Astro.props;
 const fullTitle = title === '首頁' ? '台灣商場一站查' : `${title}｜台灣商場一站查`;
 const nav = [
-  { href: '/malls', label: '商場' },
-  { href: '/brands', label: '品牌' },
-  { href: '/categories', label: '分類' },
-  { href: '/updates', label: '本週異動' },
+  { href: '/malls/', label: '商場' },
+  { href: '/brands/', label: '品牌' },
+  { href: '/categories/', label: '分類' },
+  { href: '/updates/', label: '本週異動' },
 ];
 const path = Astro.url.pathname;
 ---
@@ -24,6 +24,7 @@ const path = Astro.url.pathname;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
+    <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -62,7 +63,7 @@ const path = Astro.url.pathname;
       <div class="mx-auto grid max-w-6xl gap-2 px-4 py-8 text-sm text-muted sm:grid-cols-2">
         <p>
           資料最後檢查：{lastChecked()}・資料來自各商場官網，每週更新<br />
-          <a href="/about" class="underline">資料說明與授權（CC BY-NC 4.0）</a>
+          <a href="/about/" class="underline">資料說明與授權（CC BY-NC 4.0）</a>
         </p>
         <p class="sm:text-right">© 台灣商場一站查・非各商場官方網站</p>
       </div>

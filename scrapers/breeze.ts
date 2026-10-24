@@ -2,7 +2,7 @@
 import { loadBrandIndex, mergeMall, parseAddress, saveRaw, type ScrapedMall } from './lib/store.ts';
 
 const BASE = 'https://www.breeze.com.tw';
-const UA = 'twmalllibrary-bot/0.1 (+https://twmalllibrary.pages.dev/about)';
+const UA = 'twmalllibrary-bot/0.1 (+https://twmalllibrary.i71924.workers.dev/about/)';
 
 // 官網 branch id → 本站案場 id 與類型
 const BRANCHES: Record<string, { id: string; type: ScrapedMall['base']['type'] }> = {

@@ -43,7 +43,7 @@ closed.sort((a, b) => b.date.localeCompare(a.date));
           <ul class="grid gap-2 sm:grid-cols-2">
             {rows.map((r) => (
               <li>
-                <a href={`/brands/${r.brandId}`} class="flex items-center gap-3 rounded-2xl border border-line bg-card p-3 hover:border-brand">
+                <a href={`/brands/${r.brandId}/`} class="flex items-center gap-3 rounded-2xl border border-line bg-card p-3 hover:border-brand">
                   <BrandAvatar name={brandById.get(r.brandId)!.name} />
                   <span class="min-w-0 flex-1">
                     <b class="block truncate text-sm">{r.name}</b>

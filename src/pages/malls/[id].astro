@@ -30,13 +30,13 @@ const info = [
 
 <Base title={mall.name} description={`${mall.name}的樓層介紹與 ${units.length} 個品牌櫃位，地址：${mall.address}。`}>
   <article data-pagefind-body data-pagefind-meta={`title:${mall.name}`}>
-    <span hidden data-pagefind-filter="類型">{MALL_TYPE[mall.type]}</span>
+    <span hidden data-pagefind-filter={`類型:${MALL_TYPE[mall.type]}`}></span>
     <section class="-mx-4 mb-6 sm:mx-0 sm:mt-6">
       <div class="relative overflow-hidden sm:rounded-3xl">
         <MallArt id={mall.id} type={mall.type} class="h-44 w-full sm:h-56" />
         <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-5 text-white">
           <p class="text-sm opacity-90">{group?.name}・{MALL_TYPE[mall.type]}・<span data-pagefind-filter="縣市">{mall.city}</span>{mall.district}</p>
-          <h1 class="text-2xl font-black sm:text-4xl">{mall.name}</h1>
+          <h1 class="text-2xl font-black sm:text-4xl" data-pagefind-weight="10">{mall.name}</h1>
         </div>
       </div>
     </section>
@@ -90,7 +90,7 @@ const info = [
                   const others = new Set(locationsByBrand.get(brand.id)?.map((l) => l.mall.id)).size - 1;
                   return (
                     <li>
-                      <a href={`/brands/${brand.id}`} class="flex items-center gap-3 rounded-2xl border border-line bg-card p-3 transition hover:border-brand">
+                      <a href={`/brands/${brand.id}/`} class="flex items-center gap-3 rounded-2xl border border-line bg-card p-3 transition hover:border-brand">
                         <BrandAvatar name={brand.name} />
                         <span class="min-w-0">
                           <b class="block truncate text-sm">{u.name_raw}</b>

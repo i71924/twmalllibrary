@@ -24,11 +24,11 @@ const lastSeen = locations.reduce((m, l) => (l.unit.last_seen > m ? l.unit.last_
     <section class="mt-8 flex flex-col gap-5 rounded-3xl border border-line bg-card p-6 sm:flex-row sm:items-center">
       <BrandAvatar name={brand.name} size="lg" />
       <div class="min-w-0 flex-1">
-        <h1 class="text-3xl font-black">{brand.name}</h1>
+        <h1 class="text-3xl font-black" data-pagefind-weight="10">{brand.name}</h1>
         {brand.name_zh && <p class="text-muted">{brand.name_zh}</p>}
         <div class="mt-3 flex flex-wrap gap-2 text-xs">
           <span class="rounded-full bg-brand-soft px-3 py-1 font-bold text-brand">{cat ? `${cat.icon} ${cat.name}` : '分類建置中'}</span>
-          {agent && <a href={`/agents/${agent.id}`} class="rounded-full bg-paper px-3 py-1">代理商：{agent.name}</a>}
+          {agent && <a href={`/agents/${agent.id}/`} class="rounded-full bg-paper px-3 py-1">代理商：{agent.name}</a>}
           {brand.review === 'pending' && <span class="rounded-full bg-paper px-3 py-1 text-muted">品牌資料待審核</span>}
         </div>
       </div>
@@ -47,7 +47,7 @@ const lastSeen = locations.reduce((m, l) => (l.unit.last_seen > m ? l.unit.last_
             <ul class="grid gap-2 sm:grid-cols-2">
               {byCity.get(city)!.map((l) => (
                 <li>
-                  <a href={`/malls/${l.mall.id}`} class="flex items-center justify-between gap-3 rounded-2xl border border-line bg-card p-4 transition hover:border-brand">
+                  <a href={`/malls/${l.mall.id}/`} class="flex items-center justify-between gap-3 rounded-2xl border border-line bg-card p-4 transition hover:border-brand">
                     <span>
                       <b class="block">{l.mall.name}</b>
                       <span class="text-xs text-muted">{l.mall.district}・{l.mall.address}</span>

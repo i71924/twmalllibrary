@@ -1,11 +1,44 @@
 ---
-// Pagefind 搜尋：索引在建置後才產生，所以開發模式（npm run dev）下不會有結果
+// Pagefind 搜尋：索引在建置後才產生，所以開發模式（npm run dev）下不會有結果。
+// Pagefind 會把中文詞拆開（「微風信義」→「微風」「信義」），商場名稱容易排序錯誤，
+// 所以另外用商場名稱清單做「直接前往」捷徑，顯示在搜尋結果上方。
+import { db } from '../lib/data';
+
+const malls = db().malls.map((m) => ({ u: `/malls/${m.id}/`, n: m.name, s: m.short_name ?? null, c: m.city }));
 ---
 
 <div id="search" class="w-full"></div>
 <link href="/pagefind/pagefind-ui.css" rel="stylesheet" />
-<script is:inline>
+<script is:inline define:vars={{ malls }}>
   (function () {
+    var norm = function (x) {
+      return (x || '').normalize('NFKC').replace(/\s+/g, '').toLowerCase().replace(/臺/g, '台');
+    };
+
+    function quickLinks(box, q) {
+      var v = norm(q);
+      var hits = !v
+        ? []
+        : malls.filter(function (m) {
+            var n = norm(m.n);
+            return n.indexOf(v) >= 0 || (v.length >= 3 && v.indexOf(n) >= 0) || (m.s && norm(m.s) === v);
+          });
+      box.hidden = hits.length === 0;
+      box.innerHTML =
+        '<p class="mb-2 text-xs font-bold text-muted">直接前往商場</p><div class="flex flex-wrap gap-2">' +
+        hits
+          .slice(0, 6)
+          .map(function (m) {
+            var a = document.createElement('a');
+            a.href = m.u;
+            a.className = 'rounded-full bg-brand px-4 py-1.5 text-sm font-bold text-white';
+            a.textContent = m.n + '・' + m.c;
+            return a.outerHTML;
+          })
+          .join('') +
+        '</div>';
+    }
+
     var s = document.createElement('script');
     s.src = '/pagefind/pagefind-ui.js';
     s.onload = function () {
@@ -15,6 +48,17 @@
         showImages: false,
         resetStyles: false,
         translations: { placeholder: '搜尋品牌或商場，例如：UNIQLO、微風信義', zero_results: '找不到「[SEARCH_TERM]」' },
+      });
+      var input = document.querySelector('#search .pagefind-ui__search-input');
+      var form = document.querySelector('#search .pagefind-ui__form');
+      if (!input || !form) return;
+      var box = document.createElement('div');
+      box.className = 'my-3';
+      box.hidden = true;
+      var drawer = form.querySelector('.pagefind-ui__drawer');
+      drawer ? form.insertBefore(box, drawer) : form.appendChild(box);
+      input.addEventListener('input', function () {
+        quickLinks(box, input.value);
       });
     };
     s.onerror = function () {

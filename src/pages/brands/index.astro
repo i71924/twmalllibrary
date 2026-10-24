@@ -31,7 +31,7 @@ const groups = [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ', '0-9', '中文'].filter((g) => 
             .filter((r) => r.g === g)
             .map(({ b, n }) => (
               <li data-name={[b.name, b.name_zh, ...b.aliases].filter(Boolean).join(' ').toLowerCase()}>
-                <a href={`/brands/${b.id}`} class="flex justify-between gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-card">
+                <a href={`/brands/${b.id}/`} class="flex justify-between gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-card">
                   <span class="truncate">{b.name}</span>
                   <span class="shrink-0 text-muted">{n}</span>
                 </a>
