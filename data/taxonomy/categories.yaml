@@ -1,0 +1,96 @@
+# 業種分類 v0.1（見 SPEC.md 第 4 節）
+# code: 大類.中類，小類之後依實際資料再加
+- code: food
+  name: 餐飲
+  icon: 🍽️
+  children:
+    - { code: food.restaurant, name: 正餐 }
+    - { code: food.casual, name: 簡餐速食 }
+    - { code: food.cafe, name: 咖啡輕食 }
+    - { code: food.dessert, name: 甜點烘焙 }
+    - { code: food.drink, name: 手搖飲品 }
+    - { code: food.foodcourt, name: 美食街 }
+    - { code: food.bar, name: 酒吧 }
+- code: fashion
+  name: 時尚服飾
+  icon: 👗
+  children:
+    - { code: fashion.luxury, name: 國際精品 }
+    - { code: fashion.designer, name: 設計師品牌 }
+    - { code: fashion.apparel, name: 服飾 }
+    - { code: fashion.underwear, name: 內睡衣 }
+    - { code: fashion.shoes, name: 鞋 }
+    - { code: fashion.bags, name: 包袋皮件 }
+    - { code: fashion.accessory, name: 飾品配件 }
+    - { code: fashion.eyewear, name: 眼鏡 }
+- code: jewelry
+  name: 珠寶鐘錶
+  icon: 💎
+  children:
+    - { code: jewelry.jewelry, name: 珠寶 }
+    - { code: jewelry.watch, name: 鐘錶 }
+- code: beauty
+  name: 美妝保養
+  icon: 💄
+  children:
+    - { code: beauty.cosmetics, name: 專櫃彩妝保養 }
+    - { code: beauty.fragrance, name: 香氛 }
+    - { code: beauty.drugstore, name: 藥妝 }
+    - { code: beauty.salon, name: 美髮美甲美容 }
+- code: sports
+  name: 運動戶外
+  icon: 👟
+  children:
+    - { code: sports.sportswear, name: 運動品牌 }
+    - { code: sports.outdoor, name: 戶外 }
+    - { code: sports.gym, name: 健身 }
+- code: kids
+  name: 兒童親子
+  icon: 🧸
+  children:
+    - { code: kids.kidswear, name: 童裝 }
+    - { code: kids.toys, name: 玩具 }
+    - { code: kids.baby, name: 婦嬰用品 }
+    - { code: kids.edu, name: 才藝教育 }
+- code: home
+  name: 生活家居
+  icon: 🛋️
+  children:
+    - { code: home.furniture, name: 家具 }
+    - { code: home.kitchen, name: 廚具餐具 }
+    - { code: home.bedding, name: 寢具 }
+    - { code: home.lifestyle, name: 生活雜貨 }
+    - { code: home.stationery, name: 文具 }
+    - { code: home.books, name: 書店 }
+- code: tech
+  name: 3C 家電
+  icon: 📱
+  children:
+    - { code: tech.electronics, name: 3C }
+    - { code: tech.appliance, name: 家電 }
+    - { code: tech.telecom, name: 電信 }
+- code: grocery
+  name: 超市食品
+  icon: 🛒
+  children:
+    - { code: grocery.supermarket, name: 超市 }
+    - { code: grocery.gourmet, name: 食品名店 }
+    - { code: grocery.souvenir, name: 伴手禮 }
+- code: entertainment
+  name: 娛樂休閒
+  icon: 🎬
+  children:
+    - { code: entertainment.cinema, name: 影城 }
+    - { code: entertainment.arcade, name: 遊樂場 }
+    - { code: entertainment.exhibition, name: 展演 }
+    - { code: entertainment.ktv, name: KTV }
+- code: service
+  name: 生活服務
+  icon: 🧾
+  children:
+    - { code: service.bank, name: 金融 }
+    - { code: service.clinic, name: 醫療診所 }
+    - { code: service.pharmacy, name: 藥局 }
+    - { code: service.laundry, name: 修改洗衣 }
+    - { code: service.pet, name: 寵物 }
+    - { code: service.other, name: 其他 }

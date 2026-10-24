@@ -1,0 +1,39 @@
+---
+import Base from '../layouts/Base.astro';
+import { db } from '../lib/data';
+
+const { groups, malls } = db();
+---
+
+<Base title="資料說明" description="台灣商場一站查的資料來源、更新方式與授權。">
+  <article class="mx-auto mt-8 max-w-2xl space-y-6 leading-relaxed">
+    <h1 class="text-3xl font-black">資料說明</h1>
+
+    <section class="rounded-3xl border border-line bg-card p-6">
+      <h2 class="mb-2 text-lg font-black">資料從哪裡來？</h2>
+      <p>
+        本站資料整理自各商場官方網站公開的樓層與品牌資訊，目前收錄 {groups.length} 個集團、{malls.length} 個商場。
+        每週日自動檢查官網是否有更新，異動經人工審核後才會發布。每個頁面都會標示「最後確認」日期。
+      </p>
+    </section>
+
+    <section class="rounded-3xl border border-line bg-card p-6">
+      <h2 class="mb-2 text-lg font-black">資料可能有誤差</h2>
+      <p>櫃位異動可能比官網更新晚幾天，實際營業狀況請以各商場官方公告為準。本站並非任何商場的官方網站。</p>
+    </section>
+
+    <section class="rounded-3xl border border-line bg-card p-6">
+      <h2 class="mb-2 text-lg font-black">授權與引用</h2>
+      <p>
+        本站整理的資料採用
+        <a class="text-brand underline" href="https://creativecommons.org/licenses/by-nc/4.0/deed.zh-hant" target="_blank" rel="noopener">CC BY-NC 4.0</a>
+        授權：歡迎引用，但請註明出處「台灣商場一站查」，且不得用於商業用途。禁止以自動化程式大量擷取本站內容。
+      </p>
+    </section>
+
+    <section class="rounded-3xl border border-line bg-card p-6">
+      <h2 class="mb-2 text-lg font-black">品牌名稱與商標</h2>
+      <p>網站中出現的品牌名稱與商標屬於各品牌所有，本站僅作資訊整理用途，不使用官方 Logo。</p>
+    </section>
+  </article>
+</Base>

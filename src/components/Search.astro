@@ -1,0 +1,26 @@
+---
+// Pagefind 搜尋：索引在建置後才產生，所以開發模式（npm run dev）下不會有結果
+---
+
+<div id="search" class="w-full"></div>
+<link href="/pagefind/pagefind-ui.css" rel="stylesheet" />
+<script is:inline>
+  (function () {
+    var s = document.createElement('script');
+    s.src = '/pagefind/pagefind-ui.js';
+    s.onload = function () {
+      new PagefindUI({
+        element: '#search',
+        showSubResults: false,
+        showImages: false,
+        resetStyles: false,
+        translations: { placeholder: '搜尋品牌或商場，例如：UNIQLO、微風信義', zero_results: '找不到「[SEARCH_TERM]」' },
+      });
+    };
+    s.onerror = function () {
+      document.getElementById('search').innerHTML =
+        '<p class="rounded-2xl border border-line bg-white p-4 text-sm text-muted">搜尋功能需在建置後使用（npm run build && npm run preview）</p>';
+    };
+    document.head.appendChild(s);
+  })();
+</script>

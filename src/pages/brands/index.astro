@@ -1,0 +1,60 @@
+---
+import Base from '../../layouts/Base.astro';
+import { db, initialOf } from '../../lib/data';
+
+const { brands, locationsByBrand } = db();
+const rows = brands
+  .map((b) => ({ b, n: new Set(locationsByBrand.get(b.id)?.map((l) => l.mall.id)).size, g: initialOf(b.name) }))
+  .filter((r) => r.n > 0)
+  .sort((a, b) => a.b.name.localeCompare(b.b.name, 'zh-Hant', { sensitivity: 'base' }));
+const groups = [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ', '0-9', '中文'].filter((g) => rows.some((r) => r.g === g));
+---
+
+<Base title="品牌總覽" description="依字首瀏覽全台商場的品牌，查看每個品牌開在哪些商場。">
+  <h1 class="mb-2 mt-8 text-3xl font-black">品牌總覽</h1>
+  <p class="mb-4 text-muted">共 {rows.length.toLocaleString()} 個品牌</p>
+  <input
+    id="q"
+    type="search"
+    placeholder="輸入品牌名稱篩選…"
+    class="mb-4 w-full rounded-2xl border border-line bg-card px-4 py-3 outline-none focus:border-brand"
+  />
+  <nav class="sticky top-[57px] z-20 -mx-4 mb-4 flex gap-1 overflow-x-auto bg-paper/95 px-4 py-2 text-sm backdrop-blur">
+    {groups.map((g) => <a href={`#g-${g}`} class="shrink-0 rounded-lg px-2.5 py-1 font-bold hover:bg-brand-soft">{g}</a>)}
+  </nav>
+  {
+    groups.map((g) => (
+      <section id={`g-${g}`} class="mb-6 scroll-mt-28" data-group>
+        <h2 class="mb-2 text-lg font-black text-brand">{g}</h2>
+        <ul class="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3 lg:grid-cols-4">
+          {rows
+            .filter((r) => r.g === g)
+            .map(({ b, n }) => (
+              <li data-name={[b.name, b.name_zh, ...b.aliases].filter(Boolean).join(' ').toLowerCase()}>
+                <a href={`/brands/${b.id}`} class="flex justify-between gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-card">
+                  <span class="truncate">{b.name}</span>
+                  <span class="shrink-0 text-muted">{n}</span>
+                </a>
+              </li>
+            ))}
+        </ul>
+      </section>
+    ))
+  }
+</Base>
+
+<script>
+  const q = document.getElementById('q') as HTMLInputElement;
+  q.addEventListener('input', () => {
+    const v = q.value.trim().toLowerCase();
+    document.querySelectorAll<HTMLElement>('[data-group]').forEach((sec) => {
+      let any = false;
+      sec.querySelectorAll<HTMLElement>('li').forEach((li) => {
+        const ok = !v || li.dataset.name!.includes(v);
+        li.hidden = !ok;
+        any ||= ok;
+      });
+      sec.hidden = !any;
+    });
+  });
+</script>

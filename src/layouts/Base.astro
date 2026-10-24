@@ -1,0 +1,71 @@
+---
+import '../styles/global.css';
+import { lastChecked } from '../lib/data';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+const { title, description = '收錄全台百貨公司、購物中心、Outlet 的樓層與品牌資訊，每週更新。' } = Astro.props;
+const fullTitle = title === '首頁' ? '台灣商場一站查' : `${title}｜台灣商場一站查`;
+const nav = [
+  { href: '/malls', label: '商場' },
+  { href: '/brands', label: '品牌' },
+  { href: '/categories', label: '分類' },
+  { href: '/updates', label: '本週異動' },
+];
+const path = Astro.url.pathname;
+---
+
+<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+  </head>
+  <body class="min-h-screen font-sans antialiased">
+    <header class="sticky top-0 z-30 border-b border-line bg-paper/90 backdrop-blur">
+      <div class="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
+        <a href="/" class="flex shrink-0 items-center gap-2 font-black tracking-tight">
+          <span class="grid h-8 w-8 place-items-center rounded-xl bg-brand text-white">商</span>
+          <span class="hidden sm:inline">台灣商場一站查</span>
+        </a>
+        <nav class="ml-auto flex gap-1 overflow-x-auto text-sm">
+          {
+            nav.map((n) => (
+              <a
+                href={n.href}
+                class:list={[
+                  'whitespace-nowrap rounded-full px-3 py-1.5 transition hover:bg-brand-soft',
+                  path.startsWith(n.href) && 'bg-brand-soft font-bold text-brand',
+                ]}
+              >
+                {n.label}
+              </a>
+            ))
+          }
+        </nav>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-6xl px-4 pb-20">
+      <slot />
+    </main>
+
+    <footer class="border-t border-line bg-card">
+      <div class="mx-auto grid max-w-6xl gap-2 px-4 py-8 text-sm text-muted sm:grid-cols-2">
+        <p>
+          資料最後檢查：{lastChecked()}・資料來自各商場官網，每週更新<br />
+          <a href="/about" class="underline">資料說明與授權（CC BY-NC 4.0）</a>
+        </p>
+        <p class="sm:text-right">© 台灣商場一站查・非各商場官方網站</p>
+      </div>
+    </footer>
+  </body>
+</html>

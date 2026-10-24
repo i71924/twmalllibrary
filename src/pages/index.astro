@@ -1,0 +1,76 @@
+---
+import Base from '../layouts/Base.astro';
+import MallCard from '../components/MallCard.astro';
+import BrandAvatar from '../components/BrandAvatar.astro';
+import Search from '../components/Search.astro';
+import { CITY_ORDER, db, openUnits } from '../lib/data';
+
+const { malls, brands, locationsByBrand, categories } = db();
+const unitCount = malls.reduce((n, m) => n + openUnits(m).length, 0);
+const topBrands = brands
+  .map((b) => ({ b, n: new Set(locationsByBrand.get(b.id)?.map((l) => l.mall.id)).size }))
+  .filter((x) => x.n > 1)
+  .sort((a, b) => b.n - a.n || a.b.name.localeCompare(b.b.name))
+  .slice(0, 12);
+const cities = CITY_ORDER.map((c) => ({ c, n: malls.filter((m) => m.city === c).length })).filter((x) => x.n > 0);
+const featured = [...malls].sort((a, b) => openUnits(b).length - openUnits(a).length).slice(0, 6);
+---
+
+<Base title="首頁">
+  <section class="relative -mx-4 mb-10 overflow-hidden bg-gradient-to-br from-brand-soft via-paper to-[#e6f0fb] px-4 pb-12 pt-10 sm:rounded-b-[2.5rem]">
+    <div class="mx-auto max-w-3xl text-center">
+      <p class="mb-3 inline-block rounded-full bg-white/70 px-3 py-1 text-xs font-bold text-brand">每週自動更新・全台商場資料庫</p>
+      <h1 class="text-3xl font-black leading-tight sm:text-5xl">想找的品牌，<br class="sm:hidden" />開在哪間商場？</h1>
+      <p class="mx-auto mt-3 max-w-xl text-muted">一次查遍全台百貨、購物中心與 Outlet 的樓層和品牌。</p>
+      <div class="mx-auto mt-6 max-w-2xl text-left"><Search /></div>
+      <div class="mt-6 flex justify-center gap-6 text-sm">
+        <div><b class="block text-2xl font-black">{malls.length}</b><span class="text-muted">個商場</span></div>
+        <div><b class="block text-2xl font-black">{brands.length.toLocaleString()}</b><span class="text-muted">個品牌</span></div>
+        <div><b class="block text-2xl font-black">{unitCount.toLocaleString()}</b><span class="text-muted">個櫃位</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mb-12">
+    <div class="mb-4 flex items-end justify-between">
+      <h2 class="text-xl font-black">展店最多的品牌</h2>
+      <a href="/brands" class="text-sm text-brand">全部品牌 →</a>
+    </div>
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      {
+        topBrands.map(({ b, n }) => (
+          <a href={`/brands/${b.id}`} class="flex items-center gap-3 rounded-2xl border border-line bg-card p-3 transition hover:border-brand">
+            <BrandAvatar name={b.name} />
+            <span class="min-w-0">
+              <b class="block truncate text-sm">{b.name}</b>
+              <span class="text-xs text-muted">{n} 個商場</span>
+            </span>
+          </a>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="mb-12">
+    <div class="mb-4 flex items-end justify-between">
+      <h2 class="text-xl font-black">逛逛商場</h2>
+      <a href="/malls" class="text-sm text-brand">全部商場 →</a>
+    </div>
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{featured.map((m) => <MallCard mall={m} />)}</div>
+  </section>
+
+  <section class="mb-12 grid gap-6 lg:grid-cols-2">
+    <div>
+      <h2 class="mb-4 text-xl font-black">依縣市瀏覽</h2>
+      <div class="flex flex-wrap gap-2">
+        {cities.map(({ c, n }) => <a href={`/malls?city=${encodeURIComponent(c)}`} class="rounded-full border border-line bg-card px-4 py-2 text-sm hover:border-brand">{c} <span class="text-muted">{n}</span></a>)}
+      </div>
+    </div>
+    <div>
+      <h2 class="mb-4 text-xl font-black">依業種瀏覽</h2>
+      <div class="flex flex-wrap gap-2">
+        {categories.map((c) => <a href={`/categories#${c.code}`} class="rounded-full border border-line bg-card px-4 py-2 text-sm hover:border-brand">{c.icon} {c.name}</a>)}
+      </div>
+    </div>
+  </section>
+</Base>

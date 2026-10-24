@@ -1,0 +1,18 @@
+---
+// 品牌文字頭像（MVP 不使用官方 Logo）
+interface Props {
+  name: string;
+  size?: 'sm' | 'md' | 'lg';
+}
+const { name, size = 'md' } = Astro.props;
+const colors = ['#e0603f', '#4c7fd1', '#3f8f6b', '#d99a2b', '#8a5cc2', '#c2477a', '#2f8c9a'];
+let h = 0;
+for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+const letters = name.normalize('NFKC').replace(/[^\p{L}\p{N}]/gu, '');
+const text = /^[A-Za-z0-9]/.test(letters) ? letters.slice(0, 2).toUpperCase() : letters.slice(0, 1);
+const dim = { sm: 'h-8 w-8 text-xs rounded-lg', md: 'h-11 w-11 text-sm rounded-xl', lg: 'h-20 w-20 text-2xl rounded-2xl' }[size];
+---
+
+<span class={`grid shrink-0 place-items-center font-black text-white ${dim}`} style={`background:${colors[h % colors.length]}`} aria-hidden="true" data-pagefind-ignore>
+  {text}
+</span>

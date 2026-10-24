@@ -1,0 +1,28 @@
+---
+import MallArt from './MallArt.astro';
+import { MALL_TYPE, db, openUnits } from '../lib/data';
+import type { Mall } from '../lib/schema';
+
+interface Props {
+  mall: Mall;
+}
+const { mall } = Astro.props;
+const group = db().groupById.get(mall.group);
+---
+
+<a
+  href={`/malls/${mall.id}`}
+  class="group block overflow-hidden rounded-3xl border border-line bg-card transition hover:-translate-y-0.5 hover:shadow-lg"
+  data-city={mall.city}
+  data-type={mall.type}
+>
+  <MallArt id={mall.id} type={mall.type} class="h-28 w-full" />
+  <div class="space-y-1 p-4">
+    <div class="flex items-center gap-2 text-xs text-muted">
+      <span class="rounded-full bg-paper px-2 py-0.5">{mall.city}{mall.district}</span>
+      <span>{MALL_TYPE[mall.type]}</span>
+    </div>
+    <h3 class="font-bold group-hover:text-brand">{mall.name}</h3>
+    <p class="text-sm text-muted">{group?.name}・{openUnits(mall).length} 個櫃位</p>
+  </div>
+</a>

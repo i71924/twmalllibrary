@@ -1,0 +1,132 @@
+---
+import Base from '../../layouts/Base.astro';
+import MallArt from '../../components/MallArt.astro';
+import BrandAvatar from '../../components/BrandAvatar.astro';
+import { MALL_TYPE, db, floorCount, openUnits } from '../../lib/data';
+import type { Mall } from '../../lib/schema';
+
+export function getStaticPaths() {
+  return db().malls.map((mall) => ({ params: { id: mall.id }, props: { mall } }));
+}
+const { mall } = Astro.props as { mall: Mall };
+const { brandById, groupById, categoryName, locationsByBrand } = db();
+const group = groupById.get(mall.group);
+const units = openUnits(mall);
+const floors = mall.buildings.flatMap((b) =>
+  b.floors.filter((f) => f.units.some((u) => !u.closed_on)).map((f) => ({ ...f, building: b, key: `${b.id}-${f.id}` })),
+);
+const multiBuilding = mall.buildings.length > 1;
+const hours = mall.hours?.replace(/\n{2,}/g, '\n');
+
+const info = [
+  { k: '地址', v: mall.address },
+  { k: '電話', v: mall.phone },
+  { k: '交通', v: mall.transit },
+  { k: '開幕', v: mall.opened ? `${mall.opened.replace('-', ' 年 ')} 月` : null },
+  { k: '停車', v: mall.parking.car ? `汽車 ${mall.parking.car} 格` : null },
+  { k: '營運', v: mall.operator },
+];
+---
+
+<Base title={mall.name} description={`${mall.name}的樓層介紹與 ${units.length} 個品牌櫃位，地址：${mall.address}。`}>
+  <article data-pagefind-body data-pagefind-meta={`title:${mall.name}`}>
+    <span hidden data-pagefind-filter="類型">{MALL_TYPE[mall.type]}</span>
+    <section class="-mx-4 mb-6 sm:mx-0 sm:mt-6">
+      <div class="relative overflow-hidden sm:rounded-3xl">
+        <MallArt id={mall.id} type={mall.type} class="h-44 w-full sm:h-56" />
+        <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-5 text-white">
+          <p class="text-sm opacity-90">{group?.name}・{MALL_TYPE[mall.type]}・<span data-pagefind-filter="縣市">{mall.city}</span>{mall.district}</p>
+          <h1 class="text-2xl font-black sm:text-4xl">{mall.name}</h1>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-8 grid gap-4 lg:grid-cols-3">
+      <div class="rounded-3xl border border-line bg-card p-5 lg:col-span-2">
+        <dl class="grid gap-3 sm:grid-cols-2">
+          {
+            info.map(({ k, v }) => (
+              <div>
+                <dt class="text-xs text-muted">{k}</dt>
+                <dd class="text-sm">{v ?? <span class="text-muted">資料補充中</span>}</dd>
+              </div>
+            ))
+          }
+        </dl>
+        <a href={mall.website} target="_blank" rel="noopener" class="mt-4 inline-block text-sm text-brand">官方網站 ↗</a>
+      </div>
+      <div class="rounded-3xl border border-line bg-card p-5">
+        <h2 class="mb-2 text-xs text-muted">營業時間</h2>
+        <p class="whitespace-pre-line text-sm">{hours ?? '資料補充中'}</p>
+        <div class="mt-4 grid grid-cols-2 gap-2 text-center">
+          <div class="rounded-2xl bg-paper p-3"><b class="block text-2xl font-black">{units.length}</b><span class="text-xs text-muted">櫃位</span></div>
+          <div class="rounded-2xl bg-paper p-3"><b class="block text-2xl font-black">{floorCount(mall)}</b><span class="text-xs text-muted">樓層</span></div>
+        </div>
+        <p class="mt-3 text-xs text-muted">最後確認：{mall.meta.last_checked}</p>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="mb-3 text-xl font-black">樓層導覽</h2>
+      <div class="sticky top-[57px] z-20 -mx-4 mb-4 flex gap-2 overflow-x-auto bg-paper/95 px-4 py-2 backdrop-blur" role="tablist">
+        {
+          floors.map((f, i) => (
+            <button role="tab" data-tab={f.key} aria-selected={i === 0 ? 'true' : 'false'} class="floor-tab">
+              {multiBuilding && `${f.building.name} `}{f.label}
+            </button>
+          ))
+        }
+      </div>
+      {
+        floors.map((f, i) => (
+          <div data-panel={f.key} hidden={i !== 0} class="floor-panel">
+            {f.theme && <p class="mb-3 font-bold text-muted">{f.theme}</p>}
+            <ul class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {f.units
+                .filter((u) => !u.closed_on)
+                .map((u) => {
+                  const brand = brandById.get(u.brands[0])!;
+                  const cat = brand.category ? categoryName.get(brand.category) : null;
+                  const others = new Set(locationsByBrand.get(brand.id)?.map((l) => l.mall.id)).size - 1;
+                  return (
+                    <li>
+                      <a href={`/brands/${brand.id}`} class="flex items-center gap-3 rounded-2xl border border-line bg-card p-3 transition hover:border-brand">
+                        <BrandAvatar name={brand.name} />
+                        <span class="min-w-0">
+                          <b class="block truncate text-sm">{u.name_raw}</b>
+                          <span class="text-xs text-muted" data-pagefind-ignore>
+                            {cat ? `${cat.icon} ${cat.name}` : '分類建置中'}
+                            {others > 0 && `・另有 ${others} 個商場`}
+                          </span>
+                        </span>
+                      </a>
+                    </li>
+                  );
+                })}
+            </ul>
+          </div>
+        ))
+      }
+    </section>
+  </article>
+</Base>
+
+<style>
+  @reference "../../styles/global.css";
+  .floor-tab {
+    @apply shrink-0 cursor-pointer rounded-full border border-line bg-card px-4 py-1.5 text-sm font-bold transition;
+  }
+  .floor-tab[aria-selected='true'] {
+    @apply border-brand bg-brand text-white;
+  }
+</style>
+
+<script>
+  const tabs = document.querySelectorAll<HTMLElement>('[data-tab]');
+  tabs.forEach((t) =>
+    t.addEventListener('click', () => {
+      tabs.forEach((x) => x.setAttribute('aria-selected', String(x === t)));
+      document.querySelectorAll<HTMLElement>('[data-panel]').forEach((p) => (p.hidden = p.dataset.panel !== t.dataset.tab));
+    }),
+  );
+</script>

@@ -1,0 +1,24 @@
+{
+  "name": "twmalllibrary",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build && pagefind --site dist",
+    "preview": "astro preview",
+    "scrape:breeze": "tsx scrapers/breeze.ts",
+    "check:data": "tsx scripts/check-data.ts"
+  },
+  "devDependencies": {
+    "pagefind": "^1.5.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "astro": "^5.18.2",
+    "tailwindcss": "^4.3.3",
+    "yaml": "^2.9.1",
+    "zod": "^3.25.76"
+  }
+}

@@ -1,0 +1,49 @@
+---
+// 插畫風格的案場主視覺：依案場 id 產生固定的建築剪影與配色，不使用官網照片。
+interface Props {
+  id: string;
+  type: string;
+  class?: string;
+}
+const { id, type, class: cls = '' } = Astro.props;
+
+let h = 2166136261;
+for (const c of id) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+const rand = () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0) % 1000) / 1000;
+
+const palettes = [
+  ['#ffd9c7', '#f6a77f', '#e0603f', '#8c3b2a'],
+  ['#d7ecf7', '#9cc8e8', '#4c7fd1', '#2c4a7f'],
+  ['#e1f1e3', '#a8d5b5', '#3f8f6b', '#24553f'],
+  ['#fbecc4', '#f2c86b', '#d99a2b', '#7d5513'],
+  ['#ece0f6', '#c9a9e6', '#8a5cc2', '#4c2f73'],
+];
+const [sky, back, mid, front] = palettes[Math.floor(rand() * palettes.length)];
+
+const buildings = Array.from({ length: 7 }, (_, i) => {
+  const w = 40 + rand() * 50;
+  const x = i * 58 - 20 + rand() * 20;
+  const hgt = type === 'outlet' ? 40 + rand() * 30 : 60 + rand() * 90;
+  return { x, w, hgt, layer: i % 2 };
+});
+const sun = { x: 60 + rand() * 280, y: 30 + rand() * 30 };
+---
+
+<svg viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice" class={cls} role="img" aria-hidden="true">
+  <rect width="400" height="200" fill={sky}></rect>
+  <circle cx={sun.x} cy={sun.y} r="18" fill="#fff" opacity="0.7"></circle>
+  {buildings.filter((b) => b.layer === 1).map((b) => <rect x={b.x} y={200 - b.hgt - 10} width={b.w} height={b.hgt + 10} rx="4" fill={back} />)}
+  {
+    buildings
+      .filter((b) => b.layer === 0)
+      .map((b) => (
+        <g>
+          <rect x={b.x} y={200 - b.hgt} width={b.w} height={b.hgt} rx="4" fill={mid} />
+          {Array.from({ length: Math.floor(b.hgt / 18) }, (_, r) => (
+            <rect x={b.x + 6} y={200 - b.hgt + 8 + r * 18} width={b.w - 12} height="6" rx="2" fill="#fff" opacity="0.35" />
+          ))}
+        </g>
+      ))
+  }
+  <rect x="0" y="182" width="400" height="18" fill={front}></rect>
+</svg>

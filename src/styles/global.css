@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --color-paper: #fbf7f2;
+  --color-card: #ffffff;
+  --color-ink: #2b2420;
+  --color-muted: #7a6e66;
+  --color-line: #ece4da;
+  --color-brand: #e0603f;
+  --color-brand-soft: #fde9e1;
+  --color-leaf: #3f8f6b;
+  --color-sky: #4c7fd1;
+}
+
+html {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-paper);
+}
+
+/* Pagefind 搜尋框配色 */
+.pagefind-ui {
+  --pagefind-ui-primary: var(--color-brand);
+  --pagefind-ui-text: var(--color-ink);
+  --pagefind-ui-background: #fff;
+  --pagefind-ui-border: var(--color-line);
+  --pagefind-ui-border-radius: 16px;
+  --pagefind-ui-font: var(--font-sans);
+}

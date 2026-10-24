@@ -1,0 +1,61 @@
+---
+import Base from '../layouts/Base.astro';
+import BrandAvatar from '../components/BrandAvatar.astro';
+import { db } from '../lib/data';
+
+// 每個案場最早的 first_seen 是首次建檔日；之後才出現的櫃位算「新進」。
+// 公開網站只顯示近 3 個月（SPEC 第 8 節）。
+const { malls, brandById } = db();
+const cutoff = new Date(Date.now() - 90 * 864e5).toISOString().slice(0, 10);
+const added: { mall: (typeof malls)[number]; floor: string; name: string; brandId: string; date: string }[] = [];
+const closed: typeof added = [];
+for (const mall of malls) {
+  const all = mall.buildings.flatMap((b) => b.floors.flatMap((f) => f.units.map((u) => ({ u, f }))));
+  const baseline = all.reduce((m, { u }) => (u.first_seen < m ? u.first_seen : m), '9999');
+  for (const { u, f } of all) {
+    const row = { mall, floor: f.label, name: u.name_raw, brandId: u.brands[0], date: u.first_seen };
+    if (u.first_seen > baseline && u.first_seen >= cutoff) added.push(row);
+    if (u.closed_on && u.closed_on >= cutoff) closed.push({ ...row, date: u.closed_on });
+  }
+}
+added.sort((a, b) => b.date.localeCompare(a.date));
+closed.sort((a, b) => b.date.localeCompare(a.date));
+---
+
+<Base title="本週異動" description="全台商場最新進櫃與撤櫃品牌，每週更新。">
+  <h1 class="mb-2 mt-8 text-3xl font-black">最新異動</h1>
+  <p class="mb-8 text-muted">每週日自動檢查各商場官網，經人工審核後更新。這裡顯示近 3 個月的異動。</p>
+
+  {
+    [
+      { title: '🎉 新進品牌', rows: added },
+      { title: '👋 撤櫃品牌', rows: closed },
+    ].map(({ title, rows }) => (
+      <section class="mb-10">
+        <h2 class="mb-3 text-xl font-black">
+          {title} <span class="text-base font-normal text-muted">{rows.length}</span>
+        </h2>
+        {rows.length === 0 ? (
+          <p class="rounded-2xl border border-dashed border-line p-6 text-center text-sm text-muted">
+            目前還沒有異動紀錄。首次建檔完成後，每週的變化會出現在這裡。
+          </p>
+        ) : (
+          <ul class="grid gap-2 sm:grid-cols-2">
+            {rows.map((r) => (
+              <li>
+                <a href={`/brands/${r.brandId}`} class="flex items-center gap-3 rounded-2xl border border-line bg-card p-3 hover:border-brand">
+                  <BrandAvatar name={brandById.get(r.brandId)!.name} />
+                  <span class="min-w-0 flex-1">
+                    <b class="block truncate text-sm">{r.name}</b>
+                    <span class="text-xs text-muted">{r.mall.name}・{r.floor}</span>
+                  </span>
+                  <span class="text-xs text-muted">{r.date}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    ))
+  }
+</Base>

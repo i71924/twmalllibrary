@@ -1,0 +1,33 @@
+---
+import Base from '../../layouts/Base.astro';
+import { db } from '../../lib/data';
+
+const { categories, brands } = db();
+const count = (code: string) => brands.filter((b) => b.category === code || b.category?.startsWith(code + '.')).length;
+const unclassified = brands.filter((b) => !b.category).length;
+---
+
+<Base title="業種分類" description="依業種瀏覽品牌：餐飲、時尚、美妝、運動、親子、生活家居等。">
+  <h1 class="mb-2 mt-8 text-3xl font-black">業種分類</h1>
+  <p class="mb-6 text-muted">品牌分類建置中，目前尚有 {unclassified.toLocaleString()} 個品牌待分類。</p>
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    {
+      categories.map((c) => (
+        <section id={c.code} class="scroll-mt-24 rounded-3xl border border-line bg-card p-5">
+          <h2 class="mb-3 flex items-center gap-2 text-lg font-black">
+            <span class="text-2xl">{c.icon}</span>
+            {c.name}
+            <span class="ml-auto text-sm font-normal text-muted">{count(c.code)} 個品牌</span>
+          </h2>
+          <ul class="flex flex-wrap gap-1.5 text-sm">
+            {c.children.map((ch) => (
+              <li class="rounded-full bg-paper px-3 py-1">
+                {ch.name} <span class="text-muted">{count(ch.code)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))
+    }
+  </div>
+</Base>
