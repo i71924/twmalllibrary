@@ -10,8 +10,17 @@ export function getStaticPaths() {
 const { brand } = Astro.props as { brand: Brand };
 const { locationsByBrand, categoryName, agents } = db();
 const locations = locationsByBrand.get(brand.id) ?? [];
-const byCity = new Map<string, Location[]>();
-for (const l of locations) byCity.set(l.mall.city, [...(byCity.get(l.mall.city) ?? []), l]);
+// 同一商場多個樓層（例如整層的影城）合併成一列
+const byMall = new Map<string, Location[]>();
+for (const l of locations) byMall.set(l.mall.id, [...(byMall.get(l.mall.id) ?? []), l]);
+const floorText = (ls: Location[]) => {
+  const labels = [...new Set(ls.map((l) => (l.mall.buildings.length > 1 ? `${l.building.name} ` : '') + l.floor.label))];
+  const nums = labels.map((x) => (/^\d+F$/.test(x) ? parseInt(x) : NaN));
+  const consecutive = nums.every((n, i) => !isNaN(n) && (i === 0 || n === nums[i - 1] + 1));
+  return labels.length > 2 && consecutive ? `${labels[0]}–${labels[labels.length - 1]}` : labels.join('、');
+};
+const byCity = new Map<string, Location[][]>();
+for (const ls of byMall.values()) byCity.set(ls[0].mall.city, [...(byCity.get(ls[0].mall.city) ?? []), ls]);
 const cities = [...byCity.keys()].sort((a, b) => CITY_ORDER.indexOf(a) - CITY_ORDER.indexOf(b));
 const mallCount = new Set(locations.map((l) => l.mall.id)).size;
 const cat = brand.category ? categoryName.get(brand.category) : null;
@@ -45,7 +54,9 @@ const lastSeen = locations.reduce((m, l) => (l.unit.last_seen > m ? l.unit.last_
           <div class="mb-6">
             <h3 class="mb-2 text-sm font-bold text-muted">{city}</h3>
             <ul class="grid gap-2 sm:grid-cols-2">
-              {byCity.get(city)!.map((l) => (
+              {byCity.get(city)!.map((ls) => {
+                const l = ls[0];
+                return (
                 <li>
                   <a href={`/malls/${l.mall.id}/`} class="flex items-center justify-between gap-3 rounded-2xl border border-line bg-card p-4 transition hover:border-brand">
                     <span>
@@ -53,11 +64,12 @@ const lastSeen = locations.reduce((m, l) => (l.unit.last_seen > m ? l.unit.last_
                       <span class="text-xs text-muted">{l.mall.district}・{l.mall.address}</span>
                     </span>
                     <span class="shrink-0 rounded-xl bg-brand-soft px-3 py-1 text-sm font-black text-brand">
-                      {l.mall.buildings.length > 1 && `${l.building.name} `}{l.floor.label}
+                      {floorText(ls)}
                     </span>
                   </a>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </div>
         ))

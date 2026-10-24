@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
 import { Brand, Mall, type Unit } from '../../src/lib/schema.ts';
+import { decode } from './http.ts';
 
 export const ROOT = path.resolve(import.meta.dirname, '../..');
 const DATA = path.join(ROOT, 'data');
@@ -11,25 +12,41 @@ const DATA = path.join(ROOT, 'data');
 export const today = () =>
   new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Taipei' }).format(new Date());
 
+/** DRY=1：只解析、不寫檔（測試擷取程式用） */
+const DRY = process.env.DRY === '1';
+
 const readYaml = (file: string) => YAML.parse(fs.readFileSync(file, 'utf8'));
 const writeYaml = (file: string, obj: unknown) => {
+  if (DRY) return;
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, YAML.stringify(obj, { lineWidth: 0 }));
 };
 
 export function saveRaw(group: string, mallId: string, payload: unknown) {
+  if (DRY) return console.log(JSON.stringify(payload, null, 1).slice(0, 600));
   const file = path.join(ROOT, 'raw', group, `${mallId}.json`);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, JSON.stringify(payload, null, 2));
 }
 
+/** 拉丁字母去掉重音（É→E、Ô→O）；假名的濁音等其他文字不動 */
+const stripAccents = (s: string) => s.normalize('NFKD').replace(/([A-Za-z])\p{M}+/gu, '$1').normalize('NFKC');
+
 /** 比對用的鍵：全形轉半形、去空白與標點、統一大寫。 */
 export function brandKey(name: string) {
-  return name
-    .normalize('NFKC')
+  return stripAccents(decode(name))
     .replace(/[’'`´]/g, '')
     .replace(/[\s\-_.,·・&+!！()（）【】\[\]|/\\]/g, '')
     .toUpperCase();
+}
+
+/** 中英並列的名稱（如「UNIQLO 優衣庫」）只取英文部分當第二個比對鍵；英文少於 3 個字母不採用，避免誤併。 */
+export function latinKey(name: string) {
+  const n = stripAccents(decode(name));
+  if (!/\p{Script=Han}/u.test(n)) return null;
+  const latin = n.replace(/[^A-Za-z0-9&'’. -]/g, ' ').trim();
+  const k = brandKey(latin);
+  return /[A-Z]{3,}/.test(k) ? k : null;
 }
 
 /** 檔名／網址用的 id：英數轉小寫連字號，中文保留。 */
@@ -47,7 +64,7 @@ export function slugify(name: string) {
 
 /** 去掉官網店名常見的雜訊（分店名、樓層註記）。 */
 export function cleanName(raw: string) {
-  return raw
+  return decode(raw)
     .replace(/\s+/g, ' ')
     .replace(/[（(](期間限定|快閃|POP ?UP)[)）]/gi, '')
     .trim();
@@ -65,19 +82,29 @@ export function loadBrandIndex(): BrandIndex {
     ids.add(b.id);
     for (const n of [b.name, b.name_zh, ...b.aliases]) if (n) byKey.set(brandKey(n), b.id);
   }
+  for (const f of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {
+    if (!f.endsWith('.yaml')) continue;
+    const b = Brand.parse(readYaml(path.join(dir, f)));
+    for (const n of [b.name, ...b.aliases]) {
+      const k = n && latinKey(n);
+      if (k && !byKey.has(k)) byKey.set(k, b.id);
+    }
+  }
   return { byKey, ids };
 }
 
 /** 找到既有品牌就回傳 id；找不到就建立一筆 pending 品牌。 */
 export function resolveBrand(idx: BrandIndex, rawName: string): { id: string; created: boolean } {
   const name = cleanName(rawName);
-  const hit = idx.byKey.get(brandKey(name));
+  const lk = latinKey(name);
+  const hit = idx.byKey.get(brandKey(name)) ?? (lk ? idx.byKey.get(lk) : undefined);
   if (hit) return { id: hit, created: false };
   let id = slugify(name);
   for (let n = 2; idx.ids.has(id); n++) id = `${slugify(name)}-${n}`;
   writeYaml(path.join(DATA, 'brands', `${id}.yaml`), Brand.parse({ id, name, review: 'pending' }));
   idx.ids.add(id);
   idx.byKey.set(brandKey(name), id);
+  if (lk && !idx.byKey.has(lk)) idx.byKey.set(lk, id);
   return { id, created: true };
 }
 
@@ -106,7 +133,7 @@ export function mergeMall(scraped: ScrapedMall, idx: BrandIndex) {
   let added = 0;
   let seq = prevUnits.size;
   const seen = new Set<string>();
-  const buildings = scraped.buildings.map((b) => ({
+  const buildings: Mall['buildings'] = scraped.buildings.map((b) => ({
     id: b.id,
     name: b.name,
     floors: b.floors.map((f) => {
@@ -141,9 +168,20 @@ export function mergeMall(scraped: ScrapedMall, idx: BrandIndex) {
     }),
   }));
 
+  // 整層或整棟這次都沒出現時，保留舊資料，同樣交給 agent 判定
+  for (const pb of prev?.buildings ?? []) {
+    let nb = buildings.find((b) => b.id === pb.id);
+    if (!nb) buildings.push((nb = { id: pb.id, name: pb.name, floors: [] }));
+    for (const pf of pb.floors) if (!nb.floors.some((f) => f.id === pf.id)) nb.floors.push(pf);
+  }
+
+  // 已有的值（可能是人工修改過的）優先；舊資料是空的欄位才用這次擷取到的值補上
+  const kept = Object.fromEntries(
+    Object.entries(prev ?? {}).filter(([k, v]) => k !== 'buildings' && k !== 'meta' && v !== null && v !== ''),
+  );
   const mall = Mall.parse({
     ...scraped.base,
-    ...(prev ? { ...prev, buildings: undefined, meta: undefined } : {}),
+    ...kept,
     buildings,
     meta: {
       source_url: scraped.sourceUrl,
@@ -156,6 +194,9 @@ export function mergeMall(scraped: ScrapedMall, idx: BrandIndex) {
 }
 
 export function parseAddress(address: string) {
-  const m = address.replace(/^\d{3,6}/, '').match(/^(.{2,3}[市縣])(.{1,3}?[區鄉鎮市])/);
-  return { city: m?.[1]?.replace(/^臺/, '台') ?? '', district: m?.[2] ?? null };
+  const a = address.replace(/^\d{3,6}/, '').trim();
+  const city = a.match(/^(.{2}[市縣])/)?.[1]?.replace(/^臺/, '台') ?? '';
+  const rest = a.slice(city.length);
+  const district = rest.match(/^(.{1,3}?區)/)?.[1] ?? rest.match(/^(.{1,3}?[鄉鎮市])(?!場)/)?.[1] ?? null;
+  return { city, district };
 }

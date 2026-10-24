@@ -6,7 +6,9 @@
 
 ```bash
 npm install            # 安裝套件（Node 20 以上）
-npm run scrape:breeze  # 擷取微風各館 → data/malls、data/brands
+npx playwright install chromium   # 第一次使用：遠百、三井、華泰需要瀏覽器
+npm run scrape:all     # 依序執行全部擷取程式 → data/malls、data/brands（約 20 分鐘）
+npm run check:data     # 資料品質報告（Markdown）
 npm run build          # 建置靜態網站＋搜尋索引 → dist/
 npm run preview        # 本機預覽 http://localhost:4321
 ```

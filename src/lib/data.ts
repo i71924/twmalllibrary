@@ -80,6 +80,13 @@ export const MALL_TYPE: Record<Mall['type'], string> = {
   underground_mall: '地下街',
 };
 
+export const MALL_STATUS: Record<Mall['status'], string> = {
+  open: '營業中',
+  planned: '籌備中',
+  closed: '已歇業',
+  renovating: '整修中',
+};
+
 export const CITY_ORDER = [
   '基隆市', '台北市', '新北市', '桃園市', '新竹市', '新竹縣', '苗栗縣', '台中市', '彰化縣', '南投縣',
   '雲林縣', '嘉義市', '嘉義縣', '台南市', '高雄市', '屏東縣', '宜蘭縣', '花蓮縣', '台東縣', '澎湖縣', '金門縣', '連江縣',

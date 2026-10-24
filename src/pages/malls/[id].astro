@@ -2,7 +2,7 @@
 import Base from '../../layouts/Base.astro';
 import MallArt from '../../components/MallArt.astro';
 import BrandAvatar from '../../components/BrandAvatar.astro';
-import { MALL_TYPE, db, floorCount, openUnits } from '../../lib/data';
+import { MALL_STATUS, MALL_TYPE, db, floorCount, openUnits } from '../../lib/data';
 import type { Mall } from '../../lib/schema';
 
 export function getStaticPaths() {
@@ -35,7 +35,7 @@ const info = [
       <div class="relative overflow-hidden sm:rounded-3xl">
         <MallArt id={mall.id} type={mall.type} class="h-44 w-full sm:h-56" />
         <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-5 text-white">
-          <p class="text-sm opacity-90">{group?.name}・{MALL_TYPE[mall.type]}・<span data-pagefind-filter="縣市">{mall.city}</span>{mall.district}</p>
+          <p class="text-sm opacity-90">{mall.status !== 'open' && `【${MALL_STATUS[mall.status]}】`}{group?.name}・{MALL_TYPE[mall.type]}・<span data-pagefind-filter="縣市">{mall.city}</span>{mall.district}</p>
           <h1 class="text-2xl font-black sm:text-4xl" data-pagefind-weight="10">{mall.name}</h1>
         </div>
       </div>
@@ -68,6 +68,13 @@ const info = [
 
     <section>
       <h2 class="mb-3 text-xl font-black">樓層導覽</h2>
+      {
+        floors.length === 0 && (
+          <p class="rounded-2xl border border-dashed border-line p-6 text-center text-sm text-muted">
+            {mall.status === 'planned' ? '這個商場還在籌備中，開幕後會收錄樓層與品牌。' : '官網目前沒有提供櫃位資料。'}
+          </p>
+        )
+      }
       <div class="sticky top-[57px] z-20 -mx-4 mb-4 flex gap-2 overflow-x-auto bg-paper/95 px-4 py-2 backdrop-blur" role="tablist">
         {
           floors.map((f, i) => (

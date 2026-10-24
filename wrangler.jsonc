@@ -1,0 +1,11 @@
+// Cloudflare Worker（靜態資產）設定。main 分支用 `wrangler deploy` 上正式網址；
+// 其他分支／PR 用 `wrangler preview` 產生預覽網址，這個指令需要下面的 previews 區塊（可以是空的）。
+{
+  "name": "twmalllibrary",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  },
+  "previews": {}
+}
