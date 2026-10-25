@@ -16,6 +16,18 @@ official:
   - munsin.com.tw # Munsingwear、le coq sportif golf 台灣代理商官網
   - magy.com.tw # DIANA 女鞋官網
   - edamall.com.tw # 義大世界購物廣場（未收錄的商場官網）
+  - wacoal.com.tw # 台灣華歌爾（含 La Vie Aisee、SAVVY、Salute）
+  - wacoal.jp # 日本華歌爾
+  - triumphshop.com.tw # 黛安芬台灣（含 sloggi）
+  - chowsangsang.com # 周生生（點睛品）
+  - as-eweb.com # AS 女鞋
+  - abroadens.com.tw # PING、PLAYBOY 台灣代理商官網
+  - abroadens.tw # 同上（線上商店）
+  - toridoll.com.tw # 丸亀製麵台灣母公司
+  - marukametw.com # 丸亀製麵台灣
+  - 0918.com.tw # 0918 女裝
+  - breezeonline.com # 微風線上商店
+  - sogo.com.tw # SOGO 線上商店
 
 # 政府與公開資料（.gov.tw 已自動接受，這裡放其他的）
 gov:
