@@ -1,0 +1,57 @@
+# AI 建議的證據來源白名單（scripts/ai-verify.ts 使用）
+# 網域比對包含子網域：寫 udn.com 也會接受 money.udn.com。
+#
+# 自動視為「官方」、不必寫在這裡的：
+#   - data/malls、data/groups 裡的商場／集團官網網域
+#   - data/brands 裡已填的品牌官網（website）
+#   - 網域名稱含品牌英文名的網站（例如 UNIQLO → uniqlo.com）
+#   - 政府網站（.gov.tw）
+
+# 官方網站（品牌名稱和網域不像的，例如「無印良品」→ muji.com）
+official:
+  - muji.com
+
+# 政府與公開資料（.gov.tw 已自動接受，這裡放其他的）
+gov:
+  - data.gov.tw
+  - twse.com.tw
+  - tpex.org.tw
+
+# 主要新聞媒體
+news:
+  - cna.com.tw
+  - udn.com
+  - ltn.com.tw
+  - chinatimes.com
+  - ettoday.net
+  - storm.mg
+  - businessweekly.com.tw
+  - cw.com.tw
+  - wealth.com.tw
+  - bnext.com.tw
+  - ctee.com.tw
+  - setn.com
+  - tvbs.com.tw
+  - nownews.com
+  - mirrormedia.mg
+
+# 一律不接受（即使網域含品牌名）：部落格、論壇、地圖、百科、電商平台
+blocked:
+  - pixnet.net
+  - medium.com
+  - blogspot.com
+  - wordpress.com
+  - dcard.tw
+  - ptt.cc
+  - mobile01.com
+  - facebook.com
+  - instagram.com
+  - threads.net
+  - google.com
+  - goo.gl
+  - wikipedia.org
+  - shopee.tw
+  - momoshop.com.tw
+  - pchome.com.tw
+  - linkedin.com
+  - 104.com.tw

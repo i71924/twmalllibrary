@@ -6,3 +6,5 @@ raw/**/*.json
 !raw/.gitkeep
 .wrangler/
 raw/weekly-*
+raw/ai-verify/
+raw/ai/
