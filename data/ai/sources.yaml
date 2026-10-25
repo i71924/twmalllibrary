@@ -66,6 +66,8 @@ official:
   - keewah.com.tw # 奇華餅家
   - taimall.com.tw # 台茂購物中心（未收錄的商場官網）
   - lihpaooutlet.com.tw # 麗寶 Outlet Mall（未收錄的商場官網）
+  - 7-11.com.tw # 統一超商 7-ELEVEN（品牌名與網域寫法不同）
+  - tomsworld.com.tw # 湯姆熊
 
 # 政府與公開資料（.gov.tw 已自動接受，這裡放其他的）
 gov:
