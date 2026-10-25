@@ -34,7 +34,8 @@ run(async () => {
     const floors: ScrapedMall['buildings'][number]['floors'] = [];
     for (const slug of slugs) {
       const html = await getText(url(m.slug, `/Floor/${slug}`));
-      const names = [...html.matchAll(/<h6>([^<]+)<\/h6>/g)]
+      // 只取品牌卡（<div class="_text">）裡的 <h6>；列表檢視的樓層標題（2F）與頁尾（ADDRESS 等）也用 <h6>
+      const names = [...html.matchAll(/<div class="_text"[^>]*>\s*(?:<!--[\s\S]*?-->\s*)*<h6>([^<]+)<\/h6>/g)]
         .map((x) => text(x[1]).replace(new RegExp(`^${m.slug}\\s*`), ''))
         .filter(Boolean);
       const { id, theme } = parseFloorSlug(slug);
