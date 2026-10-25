@@ -1,5 +1,8 @@
-node_modules/
-dist/
+# node_modules、dist 在本機是指向 *.nosync 的捷徑（排除 iCloud 同步），兩種都要忽略
+node_modules
+node_modules.nosync/
+dist
+dist.nosync/
 .astro/
 .DS_Store
 raw/**/*.json
