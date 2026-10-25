@@ -133,11 +133,17 @@ for (const d of accepted.filter((x) => x.field === 'category')) {
     continue;
   }
   b.category = code;
-  // 證據是品牌自己的官網時，順便記下官網
-  const own = d.evidence.find((e) => !e.issue && e.tier === 'brand-domain');
-  if (own && !b.website) b.website = new URL(own.url).origin + '/';
+  // 兩個以上 AI 的證據都來自同一個品牌網域時，順便記下官網（只有一個 AI 引用的可能是海外站或同名的別家公司）
+  const byHost = new Map<string, Set<string>>();
+  for (const e of d.evidence.filter((x) => !x.issue && x.tier === 'brand-domain')) {
+    const origin = new URL(e.url).origin + '/';
+    byHost.set(origin, (byHost.get(origin) ?? new Set()).add(e.source));
+  }
+  const site = [...byHost].find(([, s]) => s.size >= 2)?.[0];
+  const setSite = !!site && !b.website;
+  if (setSite) b.website = site;
   touched.add(id);
-  applied.push({ d, text: `分類設為 ${code}${own && b.website === new URL(own.url).origin + '/' ? `，官網 ${b.website}` : ''}` });
+  applied.push({ d, text: `分類設為 ${code}${setSite ? `，官網 ${site}` : ''}` });
 }
 
 // 3. 其他還不支援自動寫入的
