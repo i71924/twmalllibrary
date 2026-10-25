@@ -47,6 +47,7 @@ type Decision = {
 };
 const result = JSON.parse(fs.readFileSync(resultFile, 'utf8')) as { date: string; decisions: Decision[] };
 const fromResult = new Map(result.decisions.filter((d) => d.field === 'category').map((d) => [d.target, d]));
+const fromMerge = new Map(result.decisions.filter((d) => d.field === 'same_brand').map((d) => [d.target, d]));
 
 // 人工確認：清單裡 decision 填了代碼的項目視同通過，證據沿用驗證結果（PR 說明裡附連結）
 const leafCodes = new Set(
@@ -54,27 +55,48 @@ const leafCodes = new Set(
     CategoryNode.parse(c).children.map((ch) => ch.code),
   ),
 );
-type ReviewItem = { brand: string; name: string; decision: string | null };
+type ReviewItem = { brand?: string; name?: string; pair?: string; names?: string[]; keep?: string; decision: string | null };
 const review: ReviewItem[] = CONFIRM ? YAML.parse(fs.readFileSync(CONFIRM, 'utf8')) ?? [] : [];
-const badCodes = review.filter((r) => r.decision && r.decision !== 'skip' && !leafCodes.has(r.decision));
-if (badCodes.length) {
-  console.error(`清單裡有不存在的分類代碼，請修正後再執行：\n${badCodes.map((r) => `  ${r.name}：${r.decision}`).join('\n')}`);
+// 合併清單（有 pair）的 decision 只能是 merge／skip，keep 要是兩個名稱之一；分類清單的 decision 要是有效代碼
+const bad = review.filter((r) =>
+  r.pair
+    ? (r.decision != null && r.decision !== 'merge' && r.decision !== 'skip') || (r.decision === 'merge' && !r.names?.includes(r.keep ?? ''))
+    : r.decision && r.decision !== 'skip' && !leafCodes.has(r.decision),
+);
+if (bad.length) {
+  console.error(
+    `清單裡有填錯的項目，請修正後再執行：\n${bad.map((r) => `  ${r.name ?? r.names?.join('／')}：decision=${r.decision}${r.pair ? `、keep=${r.keep}` : ''}`).join('\n')}`,
+  );
   process.exit(1);
 }
 const accepted: Decision[] = CONFIRM
   ? review
       .filter((r) => r.decision && r.decision !== 'skip')
-      .map((r) => ({
-        status: 'accepted',
-        task: 'brand-category',
-        target: r.brand,
-        label: r.name,
-        field: 'category',
-        value: r.decision,
-        verdict: 'missing',
-        sources: ['人工確認'],
-        evidence: fromResult.get(r.brand)?.evidence ?? [],
-      }))
+      .map((r): Decision =>
+        r.pair
+          ? {
+              status: 'accepted',
+              task: 'brand-merge',
+              target: r.pair,
+              label: r.names!.join('／'),
+              field: 'same_brand',
+              value: r.keep,
+              verdict: 'correct',
+              sources: ['人工確認'],
+              evidence: fromMerge.get(r.pair)?.evidence ?? [],
+            }
+          : {
+              status: 'accepted',
+              task: 'brand-category',
+              target: r.brand!,
+              label: r.name!,
+              field: 'category',
+              value: r.decision,
+              verdict: 'missing',
+              sources: ['人工確認'],
+              evidence: fromResult.get(r.brand!)?.evidence ?? [],
+            },
+      )
   : result.decisions.filter((d) => d.status === 'accepted');
 
 // ---------- git（--pr） ----------
@@ -250,7 +272,8 @@ if (PR) {
     git('branch', '-q', '-D', branch);
     process.exit(0);
   }
-  const title = CONFIRM ? `人工確認：品牌分類 ${applied.length} 項（${today()}）` : `AI 驗證：品牌分類與合併 ${applied.length} 項（${today()}）`;
+  const title = CONFIRM
+    ? `人工確認：${review.some((r) => r.pair) ? '品牌合併' : '品牌分類'} ${applied.length} 項（${today()}）` : `AI 驗證：品牌分類與合併 ${applied.length} 項（${today()}）`;
   const body = `${L.join('\n')}\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n`;
   const bodyFile = path.join(path.dirname(resultFile), 'pr-body.md');
   fs.writeFileSync(bodyFile, body);
