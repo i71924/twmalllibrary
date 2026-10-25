@@ -246,7 +246,8 @@ const nameTokens = (n: string) =>
   (n.replace(/臺/g, '台').normalize('NFKC').match(/[\p{L}\p{N}]+/gu) ?? [])
     .flatMap((w) => w.match(/[A-Za-z0-9]+|[^A-Za-z0-9]+/g) ?? [])
     .map(norm)
-    .filter((t) => t.length >= 2);
+    // 樓層字（2F、B1）是擷取時帶進來的，官網上不會有
+    .filter((t) => t.length >= 2 && !/^(b?\d+f|b\d+)$/.test(t));
 const mentions = (page: string, n: string) => {
   const t = nameTokens(n);
   return t.length > 0 && t.every((x) => page.includes(x));
