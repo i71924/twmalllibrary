@@ -19,10 +19,11 @@ const FLOOR_ORDER = (f: string) => (f === 'GF' ? 0.5 : /^B(\d+)/.test(f) ? -pars
 run(async () => {
   const only = process.argv[2];
   const idx = loadBrandIndex();
-  const page = await openPage();
   try {
     for (const s of SITES) {
       if (only && s.id !== only) continue;
+      // 每館用全新的瀏覽器工作階段：同一個工作階段逛完第一館後，後面幾館會被擋（逾時）
+      const page = await openPage();
       // ?type=all 列得最完整；部分館（如台中港）這個網址載不出來，改用預設頁。
       // Cloudflare 偶爾會卡住，每館最多試 3 次，仍失敗就跳過這館、繼續下一館。
       let ok = false;
@@ -39,6 +40,7 @@ run(async () => {
       }
       if (!ok) {
         console.warn(`⚠ ${s.name}：店舖頁載入失敗，本次略過`);
+        await page.context().close();
         continue;
       }
       const data = await page.evaluate(() => {
@@ -124,6 +126,7 @@ run(async () => {
         idx,
       );
       console.log(`${s.name}: ${floors.reduce((k, f) => k + new Set(f.shops.map((x) => x.name)).size, 0)} 個櫃位，新增 ${added}`);
+      await page.context().close();
     }
   } finally {
     await closeBrowser();

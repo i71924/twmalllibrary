@@ -9,6 +9,8 @@ npm install            # 安裝套件（Node 20 以上）
 npx playwright install chromium   # 第一次使用：遠百、三井、華泰需要瀏覽器
 npm run scrape:all     # 依序執行全部擷取程式 → data/malls、data/brands（約 20 分鐘）
 npm run check:data     # 資料品質報告（Markdown）
+npm run weekly -- feds # 跑一組擷取並比對異動（每週流程，見 SPEC 第 7 節）
+bash scripts/sync.sh   # 補跑本週還沒完成的組別並開 PR（＝雙擊「立即同步.command」）
 npm run build          # 建置靜態網站＋搜尋索引 → dist/
 npm run preview        # 本機預覽 http://localhost:4321
 ```

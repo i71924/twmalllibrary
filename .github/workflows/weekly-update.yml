@@ -1,0 +1,129 @@
+# 每週更新：每組擷取程式各自執行、比對異動，有變更就開一個 PR 等人工審核。
+# 合併 PR 後 Cloudflare 自動部署；每個 PR 分支也會有自己的預覽網址。
+name: 每週更新
+
+on:
+  schedule:
+    - cron: '0 18 * * 6' # 台灣時間週日 02:00
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 只跑這些組別（逗號分隔，例如 skm,feds；留空＝全部）
+        required: false
+        default: ''
+      dry_run:
+        description: 試跑：只產生報告（在執行摘要裡看），不開 PR
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: weekly-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: ${{ matrix.group }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        # skm、sogo 的官網一律擋 GitHub 機房的 IP（403），只在本機跑。
+        # feds、mitsui 在雲端時好時壞；失敗時本機的自動補跑（scripts/sync.sh）會在這週內補上。
+        group: [breeze, hanshin, tsrd, kssogo, themall, feds, mitsui, gloria]
+    env:
+      TZ: Asia/Taipei
+      REPORT_FILE: ${{ github.workspace }}/../report.md
+      HAS_CLAUDE: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+    steps:
+      - name: 是否要跑這組
+        id: pick
+        run: |
+          only="${{ inputs.only }}"
+          if [ -z "$only" ] || [[ ",${only// /}," == *",${{ matrix.group }},"* ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.pick.outputs.run == 'true'
+        uses: actions/checkout@v4
+
+      - if: steps.pick.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - if: steps.pick.outputs.run == 'true'
+        run: npm ci
+
+      - name: 安裝瀏覽器（遠百、三井、華泰需要）
+        if: steps.pick.outputs.run == 'true' && contains(fromJSON('["feds","mitsui","gloria"]'), matrix.group)
+        run: npx playwright install --with-deps chromium
+
+      - name: 擷取並比對異動
+        id: weekly
+        if: steps.pick.outputs.run == 'true'
+        run: npx tsx scripts/weekly.ts ${{ matrix.group }}
+
+      - name: 報告寫入執行摘要
+        if: steps.pick.outputs.run == 'true' && always()
+        run: cat "$REPORT_FILE" >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: 開 PR
+        id: pr
+        if: steps.weekly.outputs.changed == 'true' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: ${{ steps.weekly.outputs.title }}
+        run: |
+          branch="weekly/$(date +%F)-${{ matrix.group }}"
+          git config user.name "twmalllibrary-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add data
+          git commit -q -m "$TITLE"
+          git push -q -f origin "$branch"
+          gh label create weekly-update --color FDE9E1 --description "每週自動更新" --force >/dev/null
+          url=$(gh pr create --base main --head "$branch" --title "$TITLE" --body-file "$REPORT_FILE" --label weekly-update \
+                || gh pr view "$branch" --json url -q .url)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "PR：$url" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 有問題時開 Issue 通知
+        if: steps.weekly.outputs.has_problem == 'true' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="[週更⚠] ${{ matrix.group }} 擷取異常"
+          num=$(gh issue list --state open --search "in:title \"$title\"" --json number -q '.[0].number')
+          if [ -n "$num" ]; then
+            gh issue comment "$num" --body-file "$REPORT_FILE"
+          else
+            gh issue create --title "$title" --body-file "$REPORT_FILE"
+          fi
+
+      - name: Claude 審閱新品牌（留言，不改資料）
+        if: steps.pr.outputs.url != '' && steps.weekly.outputs.new_brands != '0' && env.HAS_CLAUDE == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          npx tsx scripts/brand-review-prompt.ts "${REPORT_FILE%.md}-new-brands.txt" > ../prompt.md
+          npx -y @anthropic-ai/claude-code -p "$(cat ../prompt.md)" > ../review.md
+          {
+            echo "## 🤖 Claude 新品牌審閱"
+            echo
+            echo "僅供參考，資料沒有被修改。建議合併或分類的品牌，請在 M2 歸戶時處理。"
+            echo
+            cat ../review.md
+          } > ../comment.md
+          gh pr comment "${{ steps.pr.outputs.url }}" --body-file ../comment.md

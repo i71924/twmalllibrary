@@ -9,8 +9,9 @@ import { decode } from './http.ts';
 export const ROOT = path.resolve(import.meta.dirname, '../..');
 const DATA = path.join(ROOT, 'data');
 
+/** 台灣時間的今天（YYYY-MM-DD）；測試時可用環境變數 TODAY 指定 */
 export const today = () =>
-  new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Taipei' }).format(new Date());
+  process.env.TODAY ?? new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Taipei' }).format(new Date());
 
 /** DRY=1：只解析、不寫檔（測試擷取程式用） */
 const DRY = process.env.DRY === '1';
@@ -126,12 +127,19 @@ export function mergeMall(scraped: ScrapedMall, idx: BrandIndex) {
   const file = path.join(DATA, 'malls', `${scraped.base.id}.yaml`);
   const prev = fs.existsSync(file) ? Mall.parse(readYaml(file)) : null;
   const d = today();
+  // 只拿營業中的舊櫃位來比對；已撤櫃的原樣保留，同品牌之後回到同位置會是一筆新櫃位
   const prevUnits = new Map<string, Unit>();
+  const prevClosed = new Map<string, Unit[]>();
+  let seq = 0;
   for (const b of prev?.buildings ?? [])
-    for (const f of b.floors) for (const u of f.units) prevUnits.set(`${b.id}|${f.id}|${brandKey(u.name_raw)}`, u);
+    for (const f of b.floors)
+      for (const u of f.units) {
+        seq = Math.max(seq, Number(u.uid.match(/-(\d+)$/)?.[1] ?? 0));
+        if (u.closed_on) prevClosed.set(`${b.id}|${f.id}`, [...(prevClosed.get(`${b.id}|${f.id}`) ?? []), u]);
+        else prevUnits.set(`${b.id}|${f.id}|${brandKey(u.name_raw)}`, u);
+      }
 
   let added = 0;
-  let seq = prevUnits.size;
   const seen = new Set<string>();
   const buildings: Mall['buildings'] = scraped.buildings.map((b) => ({
     id: b.id,
@@ -164,6 +172,7 @@ export function mergeMall(scraped: ScrapedMall, idx: BrandIndex) {
       // 這次沒看到的舊櫃位先保留（last_seen 不更新），由每週 agent 判定是否撤櫃
       for (const [k, u] of prevUnits)
         if (k.startsWith(`${b.id}|${f.id}|`) && !seen.has(k)) units.push(u);
+      units.push(...(prevClosed.get(`${b.id}|${f.id}`) ?? []));
       return { id: f.id, label: f.label, theme: f.theme ?? null, units };
     }),
   }));

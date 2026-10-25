@@ -12,7 +12,8 @@
     "scrape:sogo": "tsx scrapers/sogo.ts",
     "scrape:feds": "tsx scrapers/feds.ts",
     "scrape:mitsui": "tsx scrapers/mitsui.ts",
-    "scrape:all": "tsx scrapers/breeze.ts && tsx scrapers/skm.ts && tsx scrapers/skmpark.ts && tsx scrapers/sogo.ts && tsx scrapers/hanshin.ts && tsx scrapers/tsrd.ts && tsx scrapers/kssogo.ts && tsx scrapers/themall.ts && tsx scrapers/feds.ts && tsx scrapers/mitsui.ts && tsx scrapers/gloria.ts"
+    "scrape:all": "tsx scrapers/breeze.ts && tsx scrapers/skm.ts && tsx scrapers/skmpark.ts && tsx scrapers/sogo.ts && tsx scrapers/hanshin.ts && tsx scrapers/tsrd.ts && tsx scrapers/kssogo.ts && tsx scrapers/themall.ts && tsx scrapers/feds.ts && tsx scrapers/mitsui.ts && tsx scrapers/gloria.ts",
+    "weekly": "tsx scripts/weekly.ts"
   },
   "devDependencies": {
     "pagefind": "^1.5.2",

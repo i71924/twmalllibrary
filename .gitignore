@@ -5,3 +5,4 @@ dist/
 raw/**/*.json
 !raw/.gitkeep
 .wrangler/
+raw/weekly-*

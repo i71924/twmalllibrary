@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 本機自動補跑：登入時與每小時執行一次 scripts/sync.sh --auto。
+     只補本週還沒完成的組別（雲端被擋或失敗的）；沒網路、或本週都完成時什麼都不做。
+     週日 05:00 前不跑，讓 GitHub 雲端（02:00）先跑。電腦不用 24 小時開著，本週開機連網時就會補上。
+     執行的是排程專用的 clone：~/twmalllibrary-weekly（不在「桌面」底下，避開 macOS 隱私限制）。
+     安裝：git clone 到 ~/twmalllibrary-weekly、cp 本檔到 ~/Library/LaunchAgents/、launchctl bootstrap。 -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>tw.twmalllibrary.weekly</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/brucefeng/twmalllibrary-weekly/scripts/sync.sh</string>
+    <string>--auto</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>WEEKLY_DEDICATED</key>
+    <string>1</string>
+  </dict>
+  <key>WorkingDirectory</key>
+  <string>/Users/brucefeng/twmalllibrary-weekly</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartInterval</key>
+  <integer>3600</integer>
+  <key>StandardOutPath</key>
+  <string>/Users/brucefeng/twmalllibrary-weekly/raw/weekly-logs/launchd.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/brucefeng/twmalllibrary-weekly/raw/weekly-logs/launchd.log</string>
+</dict>
+</plist>
