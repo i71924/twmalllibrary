@@ -110,7 +110,10 @@ if (PR) {
   }
   git('switch', '-q', 'main');
   git('pull', '-q', '--ff-only', 'origin', 'main');
-  const stamp = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit' }).format(new Date()).replace(':', '');
+  // 精確到秒，連續開兩個 PR 時分支名稱才不會撞到
+  const stamp = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    .format(new Date())
+    .replace(/:/g, '');
   branch = `ai/${today()}-${stamp}`;
   git('switch', '-q', '-c', branch);
 }
