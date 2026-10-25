@@ -16,7 +16,8 @@
     "weekly": "tsx scripts/weekly.ts",
     "ai:verify": "tsx scripts/ai-verify.ts",
     "ai:apply": "tsx scripts/ai-apply.ts",
-    "ai:batch": "tsx scripts/ai-batch.ts"
+    "ai:batch": "tsx scripts/ai-batch.ts",
+    "ai:review": "tsx scripts/ai-review.ts"
   },
   "devDependencies": {
     "pagefind": "^1.5.2",

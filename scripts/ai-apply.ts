@@ -1,24 +1,27 @@
 // 把 ai-verify 判定「自動通過」的建議寫進資料（docs/AI-VERIFY.md「建議的自動化流程」的最後一步）。
 // 目前支援：品牌業種分類（category）、品牌合併（same_brand）；其他欄位只列在報告裡，之後再處理。
 // 安全規則：已有不同分類的品牌不覆蓋；品牌已被合併或刪除就跳過；寫入前都用 schema 驗證。
-// 用法：npx tsx scripts/ai-apply.ts [result.json] [--dry] [--pr]
+// 用法：npx tsx scripts/ai-apply.ts [result.json] [--confirm raw/ai/review.yaml] [--dry] [--pr]
 //   不指定檔案時用最新一次的 raw/ai-verify/<日期>/result.json
+//   --confirm 改為寫入人工確認清單（scripts/ai-review.ts 產生）裡填了分類代碼的項目
 //   --dry 只列出會改什麼；--pr 從最新的 main 開分支、寫入、commit、開 ai-verified PR
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { Brand } from '../src/lib/schema.ts';
+import YAML from 'yaml';
+import { Brand, CategoryNode } from '../src/lib/schema.ts';
 import { ROOT, brandKey, today } from '../scrapers/lib/store.ts';
-import { loadBrands, loadMalls, locationCounts, renameUnitBrands, writeYaml } from './lib/brands.ts';
+import { DATA, loadBrands, loadMalls, locationCounts, renameUnitBrands, writeYaml } from './lib/brands.ts';
 import { TIER_LABEL, type Tier } from './lib/evidence.ts';
 
 const argv = process.argv.slice(2);
 const DRY = argv.includes('--dry');
 const PR = argv.includes('--pr') && !DRY;
+const CONFIRM = argv.includes('--confirm') ? argv[argv.indexOf('--confirm') + 1] : null;
 
 const VERIFY_DIR = path.join(ROOT, 'raw/ai-verify');
 const resultFile =
-  argv.find((a) => !a.startsWith('--')) ??
+  argv.find((a, i) => !a.startsWith('--') && argv[i - 1] !== '--confirm') ??
   (() => {
     const days = fs.existsSync(VERIFY_DIR)
       ? fs.readdirSync(VERIFY_DIR).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && fs.existsSync(path.join(VERIFY_DIR, d, 'result.json')))
@@ -43,7 +46,36 @@ type Decision = {
   evidence: Ev[];
 };
 const result = JSON.parse(fs.readFileSync(resultFile, 'utf8')) as { date: string; decisions: Decision[] };
-const accepted = result.decisions.filter((d) => d.status === 'accepted');
+const fromResult = new Map(result.decisions.filter((d) => d.field === 'category').map((d) => [d.target, d]));
+
+// 人工確認：清單裡 decision 填了代碼的項目視同通過，證據沿用驗證結果（PR 說明裡附連結）
+const leafCodes = new Set(
+  (YAML.parse(fs.readFileSync(path.join(DATA, 'taxonomy/categories.yaml'), 'utf8')) as unknown[]).flatMap((c) =>
+    CategoryNode.parse(c).children.map((ch) => ch.code),
+  ),
+);
+type ReviewItem = { brand: string; name: string; decision: string | null };
+const review: ReviewItem[] = CONFIRM ? YAML.parse(fs.readFileSync(CONFIRM, 'utf8')) ?? [] : [];
+const badCodes = review.filter((r) => r.decision && r.decision !== 'skip' && !leafCodes.has(r.decision));
+if (badCodes.length) {
+  console.error(`清單裡有不存在的分類代碼，請修正後再執行：\n${badCodes.map((r) => `  ${r.name}：${r.decision}`).join('\n')}`);
+  process.exit(1);
+}
+const accepted: Decision[] = CONFIRM
+  ? review
+      .filter((r) => r.decision && r.decision !== 'skip')
+      .map((r) => ({
+        status: 'accepted',
+        task: 'brand-category',
+        target: r.brand,
+        label: r.name,
+        field: 'category',
+        value: r.decision,
+        verdict: 'missing',
+        sources: ['人工確認'],
+        evidence: fromResult.get(r.brand)?.evidence ?? [],
+      }))
+  : result.decisions.filter((d) => d.status === 'accepted');
 
 // ---------- git（--pr） ----------
 const git = (...args: string[]) => execFileSync('git', ['-c', 'core.quotePath=false', ...args], { cwd: ROOT, encoding: 'utf8' }).trim();
@@ -167,17 +199,25 @@ if (!DRY) {
 
 // ---------- 報告（也當 PR 說明） ----------
 const show = (v: unknown) => String(v ?? '（空）').replace(/\|/g, '｜');
-const evLine = (e: Ev) => `  - [${e.host}](${e.url})（${TIER_LABEL[e.tier]}，${e.source}）：「${e.quote.replace(/\n/g, ' ')}」`;
+const evLine = (e: Ev) =>
+  `  - [${e.host}](${e.url})（${TIER_LABEL[e.tier]}，${e.source}）：「${e.quote.replace(/\n/g, ' ')}」${e.issue ? `（⚠ ${e.issue}）` : ''}`;
+// 人工確認時沒有通過驗證的證據也列出來（標 ⚠），讓人知道 AI 當初的依據
+const shown = (d: Decision) => d.evidence.filter((e) => CONFIRM || !e.issue);
 // 從這次寫入的項目隨機抽 3 筆請人點開證據看一下，確認 AI 和驗證程式沒有一起出錯
 const picks = [...applied].sort(() => Math.random() - 0.5).slice(0, 3);
 
 const L: string[] = [];
-L.push(`AI 建議經 \`scripts/ai-verify.ts\` 驗證（原文逐字在網頁上、網域可信、多個 AI 一致且信心 high）後自動寫入。`, '');
-L.push(`- 驗證結果：\`${path.relative(ROOT, resultFile)}\`（${result.date}）`);
+if (CONFIRM) {
+  L.push('AI 驗證沒有自動通過（信心不夠、證據讀不到、或 AI 意見不一致），由人工確認分類後寫入。下方證據連結是 AI 當初附的，不一定都通過驗證。', '');
+  L.push(`- 人工確認清單：\`${path.relative(ROOT, path.resolve(CONFIRM))}\`（${review.length} 項，其中 ${accepted.length} 項有填分類）`);
+} else {
+  L.push(`AI 建議經 \`scripts/ai-verify.ts\` 驗證（原文逐字在網頁上、網域可信、多個 AI 一致且信心 high）後自動寫入。`, '');
+  L.push(`- 驗證結果：\`${path.relative(ROOT, resultFile)}\`（${result.date}）`);
+}
 L.push(`- 寫入 **${applied.length}** 項；跳過 ${skipped.length} 項；改動品牌 ${touched.size} 筆、刪除（併入其他品牌）${removed.size} 筆、商場 ${changedMalls.length} 個`, '');
 if (picks.length) {
   L.push('## 🔍 請抽查這幾筆', '', '點開證據網址，確認原文真的在網頁上、而且確實支持這個結論：', '');
-  for (const p of picks) L.push(`- **${p.d.label}**：${p.text}`, ...p.d.evidence.filter((e) => !e.issue).slice(0, 2).map(evLine));
+  for (const p of picks) L.push(`- **${p.d.label}**：${p.text}`, ...shown(p.d).slice(0, 2).map(evLine));
   L.push('');
 }
 L.push('## 寫入', '');
@@ -186,7 +226,7 @@ else {
   L.push('| 品牌 | 改動 | AI |', '|---|---|---|');
   for (const a of applied) L.push(`| ${show(a.d.label)} | ${show(a.text)} | ${a.d.sources.join('、')} |`);
   L.push('', '<details><summary>全部證據</summary>', '');
-  for (const a of applied) L.push(`- **${a.d.label}｜${a.d.field}**`, ...a.d.evidence.filter((e) => !e.issue).map(evLine));
+  for (const a of applied) L.push(`- **${a.d.label}｜${a.d.field}**`, ...shown(a.d).map(evLine));
   L.push('', '</details>', '');
 }
 if (skipped.length) {
@@ -210,7 +250,7 @@ if (PR) {
     git('branch', '-q', '-D', branch);
     process.exit(0);
   }
-  const title = `AI 驗證：品牌分類與合併 ${applied.length} 項（${today()}）`;
+  const title = CONFIRM ? `人工確認：品牌分類 ${applied.length} 項（${today()}）` : `AI 驗證：品牌分類與合併 ${applied.length} 項（${today()}）`;
   const body = `${L.join('\n')}\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n`;
   const bodyFile = path.join(path.dirname(resultFile), 'pr-body.md');
   fs.writeFileSync(bodyFile, body);
