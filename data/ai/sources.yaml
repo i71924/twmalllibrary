@@ -10,6 +10,12 @@
 # 官方網站（品牌名稱和網域不像的，例如「無印良品」→ muji.com）
 official:
   - muji.com
+  - gseven.com.tw # 集雅社
+  - ll-porter.com # PORTER INTERNATIONAL 台灣官網
+  - chain-way.com.tw # KINLOCH ANDERSON 台灣代理商官網
+  - munsin.com.tw # Munsingwear、le coq sportif golf 台灣代理商官網
+  - magy.com.tw # DIANA 女鞋官網
+  - edamall.com.tw # 義大世界購物廣場（未收錄的商場官網）
 
 # 政府與公開資料（.gov.tw 已自動接受，這裡放其他的）
 gov:

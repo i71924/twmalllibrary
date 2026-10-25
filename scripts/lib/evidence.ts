@@ -113,6 +113,12 @@ async function viaBrowser(url: string): Promise<Omit<Page, 'fetched'>> {
   }
 }
 
+// 擋機器人的網站（Akamai、Cloudflare 等）會回 200 但內容只有錯誤訊息；這種不能算「原文不在網頁上」
+const BLOCKED =
+  /accessdenied|youdonthavepermissiontoaccess|pageunavailable|somethingwentwrong|justamoment|attentionrequired|checkingyourbrowser|pleaseenablejavascript|requestblocked/;
+const isBlocked = (p: Page) => p.ok && p.visible.length < 600 && BLOCKED.test(p.visible);
+const markBlocked = (p: Page): Page => (isBlocked(p) ? { ...p, ok: false, status: '網站擋下自動讀取' } : p);
+
 const memo = new Map<string, Page>();
 let lastFetch = 0;
 
@@ -133,12 +139,13 @@ export async function getPage(url: string, opts: { browser: boolean; refresh: bo
     lastFetch = Date.now();
     page = { ...(await viaFetch(url)), fetched: new Date().toISOString() };
   }
+  page = markBlocked(page);
   const missing = !page.ok || (opts.needle != null && !page.source.includes(opts.needle));
   if (opts.browser && missing && page.via === 'fetch') {
-    const b = await viaBrowser(url);
+    const b = markBlocked({ ...(await viaBrowser(url)), fetched: new Date().toISOString() });
     // 瀏覽器版只在確實比較好時才採用
-    if (b.ok && (opts.needle == null || b.source.includes(opts.needle) || b.visible.includes(opts.needle) || !page.ok))
-      page = { ...b, fetched: new Date().toISOString() };
+    if (b.ok && (opts.needle == null || b.source.includes(opts.needle) || b.visible.includes(opts.needle) || !page.ok)) page = b;
+    else if (!page.ok && !b.ok && b.status === '網站擋下自動讀取') page = b;
   }
   memo.set(url, page);
   fs.mkdirSync(CACHE, { recursive: true });
