@@ -19,7 +19,7 @@ const lines = (html: string) =>
 
 /** 「1F_Cosmetics_&_Luxury」→ 樓層 1F、主題 Cosmetics & Luxury；「Food_Court_&_Supermarket」→ 整段當樓層名 */
 function parseFloorSlug(slug: string) {
-  const s = text(decodeURIComponent(slug)).replace(/_/g, ' ');
+  const s = slug.replace(/_/g, ' ');
   const m = s.match(/^(B?\d+F)\s*(.*)$/i);
   return m ? { id: m[1].toUpperCase().replace(/^(B\d+)F$/, '$1'), theme: m[2] || null } : { id: s, theme: null };
 }
@@ -30,10 +30,11 @@ run(async () => {
   for (const m of MALLS) {
     if (only && m.id !== only) continue;
     const home = await getText(url(m.slug));
-    const slugs = [...new Set([...home.matchAll(/\/tw\/Floor\/([^/"]+)"/g)].map((x) => x[1]))];
+    // 連結裡的樓層名有 HTML 實體（&amp;）與網址編碼（%27），先還原成原文，組網址時再統一編碼
+    const slugs = [...new Set([...home.matchAll(/\/tw\/Floor\/([^/"]+)"/g)].map((x) => decodeURIComponent(text(x[1]))))];
     const floors: ScrapedMall['buildings'][number]['floors'] = [];
     for (const slug of slugs) {
-      const html = await getText(url(m.slug, `/Floor/${slug}`));
+      const html = await getText(url(m.slug, `/Floor/${encodeURIComponent(slug)}`));
       // 只取品牌卡（<div class="_text">）裡的 <h6>；列表檢視的樓層標題（2F）與頁尾（ADDRESS 等）也用 <h6>
       const names = [...html.matchAll(/<div class="_text"[^>]*>\s*(?:<!--[\s\S]*?-->\s*)*<h6>([^<]+)<\/h6>/g)]
         .map((x) => text(x[1]).replace(new RegExp(`^${m.slug}\\s*`), ''))
