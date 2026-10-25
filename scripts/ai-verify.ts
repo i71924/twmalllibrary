@@ -1,5 +1,5 @@
 // AI 建議的證據驗證（docs/AI-VERIFY.md「建議的自動化流程」）：不信任 AI 的結論，只信證據。
-// 讀入一個或多個 AI 輸出的 JSON（每個 AI 一個資料夾，或 JSON 裡寫 "source"），逐筆檢查：
+// 讀入一個或多個 AI 輸出的 JSON（檔名就是 AI 名稱，例如 raw/ai/<批次>/claude.json），逐筆檢查：
 //   1. 格式正確、對象（品牌／商場）存在、分類代碼在分類表裡
 //   2. 證據網址打得開，而且引述的原文真的出現在網頁上（逐字比對，忽略空白與標點）
 //   3. 證據網域在白名單（商場官網、品牌官網、政府、主要媒體；見 data/ai/sources.yaml）
@@ -133,7 +133,8 @@ for (const file of inputs.flatMap((p) => listFiles(path.resolve(p)))) {
       invalid.push({ file: rel, source: '?', target: t, field: '?', reason: `格式不符：${parsed.error.issues.map((i) => `${i.path.join('.')} ${i.message}`).join('；')}` });
       continue;
     }
-    const source = parsed.data.source ?? path.basename(path.dirname(file));
+    // AI 名稱：JSON 裡的 source，否則用檔名（raw/ai/<批次>/claude.json → claude）
+    const source = parsed.data.source ?? path.basename(file, '.json');
     for (const finding of parsed.data.findings) items.push({ source, file: rel, task: parsed.data.task, target: parsed.data.target, finding });
   }
 }
