@@ -301,7 +301,11 @@ async function main() {
   for (const { r, items: its } of groupsByKey.values()) {
     n++;
     process.stdout.write(`\r檢查中 ${n}/${groupsByKey.size}：${r.label}`.padEnd(60).slice(0, 80));
-    const { task, finding } = its[0];
+    // 表示查不到（uncertain 且沒有建議值）的 AI 算棄權，不算反對
+    const abstain = (it: Item) => it.finding.verdict === 'uncertain' && (it.finding.suggested == null || it.finding.field === 'same_brand');
+    const answers = its.filter((it) => !abstain(it));
+    const { task } = its[0];
+    const finding = (answers[0] ?? its[0]).finding;
     const field = finding.field;
     const reasons: string[] = [];
 
@@ -310,13 +314,20 @@ async function main() {
     const good = evidence.filter((e) => !e.issue);
 
     // 5. 多個 AI 是否一致
-    const values = new Map(its.map((it) => [it.source, canon(field, it.finding)]));
+    // 規則：有答案的 AI 全部選同一個值，而且其中至少 MIN_SOURCES 個標 high。
+    // 三個以上 AI 時，信心較低但答案相同的不會擋住；只要有人選了不同的值就待確認。
+    const values = new Map(answers.map((it) => [it.source, canon(field, it.finding)]));
     const distinct = new Set(values.values());
-    if (its.length < MIN_SOURCES) reasons.push(`只有 ${its.length} 個 AI 提供意見（需要 ${MIN_SOURCES} 個）`);
+    if (answers.length < MIN_SOURCES)
+      reasons.push(`只有 ${answers.length} 個 AI 給出答案（需要 ${MIN_SOURCES} 個）${answers.length < its.length ? `；${its.filter(abstain).map((it) => it.source).join('、')} 查不到` : ''}`);
     if (distinct.size > 1) reasons.push(`AI 意見不一致：${its.map((it) => `${it.source}＝${it.finding.suggested ?? it.finding.verdict}`).join('、')}`);
-    if (its.some((it) => it.finding.verdict === 'uncertain')) reasons.push('有 AI 表示不確定');
-    const low = its.filter((it) => it.finding.confidence !== 'high');
-    if (low.length) reasons.push(`信心不是 high：${low.map((it) => `${it.source}（${it.finding.confidence}）`).join('、')}`);
+    const highs = answers.filter((it) => it.finding.confidence === 'high');
+    // 答案相同但自稱不確定的 AI 不擋；只有標 high 的 AI 又說不確定時才待確認
+    if (highs.some((it) => it.finding.verdict === 'uncertain')) reasons.push('有 AI 標 high 卻表示不確定');
+    if (highs.length < MIN_SOURCES)
+      reasons.push(
+        `標 high 的只有 ${highs.length} 個（需要 ${MIN_SOURCES} 個）：${answers.filter((it) => it.finding.confidence !== 'high').map((it) => `${it.source}（${it.finding.confidence}）`).join('、')}`,
+      );
 
     // 2、3. 證據
     if (!evidence.length) reasons.push('沒有附證據');
