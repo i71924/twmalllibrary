@@ -214,9 +214,10 @@ for (const d of accepted)
 // ---------- 寫檔 ----------
 const changedMalls = renameUnitBrands(malls, rename);
 if (!DRY) {
+  // 同一次寫入裡先被保留、後來又被併進別的品牌的（例如 A＝B 保留 A，之後 A＝C 保留 C），已經不在 brands 裡，不必寫
   for (const id of touched) {
-    const e = brands.get(id)!;
-    writeYaml(e.file, Brand.parse(e.b));
+    const e = brands.get(id);
+    if (e) writeYaml(e.file, Brand.parse(e.b));
   }
   for (const file of removed.values()) fs.rmSync(file, { force: true });
   for (const { file, m } of changedMalls) writeYaml(file, m);
@@ -239,7 +240,7 @@ if (CONFIRM) {
   L.push(`AI 建議經 \`scripts/ai-verify.ts\` 驗證（原文逐字在網頁上、網域可信、多個 AI 一致且信心 high）後自動寫入。`, '');
   L.push(`- 驗證結果：\`${path.relative(ROOT, resultFile)}\`（${result.date}）`);
 }
-L.push(`- 寫入 **${applied.length}** 項；跳過 ${skipped.length} 項；改動品牌 ${touched.size} 筆、刪除（併入其他品牌）${removed.size} 筆、商場 ${changedMalls.length} 個`, '');
+L.push(`- 寫入 **${applied.length}** 項；跳過 ${skipped.length} 項；改動品牌 ${[...touched].filter((id) => brands.has(id)).length} 筆、刪除（併入其他品牌）${removed.size} 筆、商場 ${changedMalls.length} 個`, '');
 if (picks.length) {
   L.push('## 🔍 請抽查這幾筆', '', '點開證據網址，確認原文真的在網頁上、而且確實支持這個結論：', '');
   for (const p of picks) L.push(`- **${p.d.label}**：${p.text}`, ...shown(p.d).slice(0, 2).map(evLine));
