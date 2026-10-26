@@ -223,7 +223,8 @@ for (const d of accepted)
     });
 
 // ---------- 寫檔 ----------
-const changedMalls = renameUnitBrands(malls, rename);
+// 連續被併兩次以上時（A→B、B→C），櫃位要直接改指向最後那一筆
+const changedMalls = renameUnitBrands(malls, new Map([...rename.keys()].map((id) => [id, finalId(id)])));
 if (!DRY) {
   // 同一次寫入裡先被保留、後來又被併進別的品牌的（例如 A＝B 保留 A，之後 A＝C 保留 C），已經不在 brands 裡，不必寫
   for (const id of touched) {
