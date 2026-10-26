@@ -41,13 +41,18 @@ export function brandKey(name: string) {
     .toUpperCase();
 }
 
-/** 中英並列的名稱（如「UNIQLO 優衣庫」）只取英文部分當第二個比對鍵；英文少於 3 個字母不採用，避免誤併。 */
+// 只有這些普通英文字時不能當比對鍵（曾把「新馬辣Plus+」誤歸到「迷客夏Plus」、「樂天皇朝 Signature」誤歸到「點點心Signature」）
+const GENERIC_LATIN = new Set(
+  'PLUS SIGNATURE CAFE COFFEE SHOP STORE SELECT HOME KIDS BABY STUDIO LIFE STYLE OUTLET COLLECTION KITCHEN BAR TEA MARKET CLUB HOUSE LAB GOLF SPORT SPORTS BEAUTY DESIGN TAIWAN TOKYO PARIS NEW THE'.split(' '),
+);
+
+/** 中英並列的名稱（如「UNIQLO 優衣庫」）只取英文部分當第二個比對鍵；英文少於 3 個字母或只是普通英文字不採用，避免誤併。 */
 export function latinKey(name: string) {
   const n = stripAccents(decode(name));
   if (!/\p{Script=Han}/u.test(n)) return null;
   const latin = n.replace(/[^A-Za-z0-9&'’. -]/g, ' ').trim();
   const k = brandKey(latin);
-  return /[A-Z]{3,}/.test(k) ? k : null;
+  return /[A-Z]{3,}/.test(k) && !GENERIC_LATIN.has(k) ? k : null;
 }
 
 /** 檔名／網址用的 id：英數轉小寫連字號，中文保留。 */
