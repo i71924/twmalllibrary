@@ -31,7 +31,10 @@ async function viaBrowser() {
 
 let r: { status: unknown; title: string; meta: string; body: string };
 try { r = await viaFetch(); } catch (e) { r = { status: String(e), title: '', meta: '', body: '' }; }
-const blocked = r.body.length < 400 || /access denied|page unavailable|just a moment/i.test(r.body.slice(0, 500));
+// 被擋的頁面：狀態碼 403／429、內文太短，或標題／內文是 Cloudflare、Akamai 的擋頁訊息
+const blocked =
+  r.status === 403 || r.status === 429 || r.body.length < 400 ||
+  /access denied|page unavailable|just a moment|attention required|checking your browser/i.test(`${r.title} ${r.body.slice(0, 500)}`);
 if (blocked) { try { r = await viaBrowser(); } catch (e) { console.log('瀏覽器也失敗', String(e).slice(0, 80)); } }
 const flat = r.body.replace(/\s+/g, ' ');
 console.log(`[${r.status}] ${r.title}`);
