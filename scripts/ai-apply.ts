@@ -125,6 +125,8 @@ const locs = locationCounts(malls);
 const rename = new Map<string, string>(); // 被併掉的 id → 保留的 id
 const finalId = (id: string): string => (rename.has(id) ? finalId(rename.get(id)!) : id);
 const touched = new Set<string>(); // 有修改的品牌 id
+const byName = new Map<string, string>(); // 名稱或別名的比對鍵 → 品牌 id
+for (const { b } of brands.values()) for (const n of [b.name, ...b.aliases]) if (!byName.has(brandKey(n))) byName.set(brandKey(n), b.id);
 const removed = new Map<string, string>(); // 被併掉的品牌 id → 要刪的檔案
 
 type Done = { d: Decision; text: string };
@@ -133,7 +135,16 @@ const skipped: Done[] = [];
 
 // 1. 先合併，後面的分類才會寫到保留下來的那一筆
 for (const d of accepted.filter((x) => x.field === 'same_brand' && x.verdict === 'correct')) {
-  const ids = [...new Set(d.target.split('+').map(finalId))];
+  // 品牌在之前的 PR 已被併掉時，用名稱找它現在在哪一筆（被併掉的名稱會留成別名）
+  const labelNames = d.label.split('／');
+  const ids = [
+    ...new Set(
+      d.target
+        .split('+')
+        .sort()
+        .map((id, i) => (brands.has(finalId(id)) ? finalId(id) : (byName.get(brandKey(labelNames[i] ?? '')) ?? id))),
+    ),
+  ];
   const missing = ids.filter((id) => !brands.has(id));
   if (missing.length) {
     skipped.push({ d, text: `品牌已不存在：${missing.join('、')}` });
