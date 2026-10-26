@@ -235,6 +235,17 @@ if (!DRY) {
   for (const { file, m } of changedMalls) writeYaml(file, m);
 }
 
+// 保險：每個櫃位指向的品牌都要存在，否則網站建置會失敗；有問題就停下、不開 PR
+if (!DRY) {
+  const missing = new Set<string>();
+  for (const { m } of malls)
+    for (const bd of m.buildings) for (const f of bd.floors) for (const u of f.units) for (const id of u.brands) if (!brands.has(id)) missing.add(`${m.id}：${u.name_raw} → ${id}`);
+  if (missing.size) {
+    console.error(`寫入後有 ${missing.size} 個櫃位指向不存在的品牌，請先處理（資料已寫入工作目錄、尚未 commit）：\n${[...missing].slice(0, 20).join('\n')}`);
+    process.exit(1);
+  }
+}
+
 // ---------- 報告（也當 PR 說明） ----------
 const show = (v: unknown) => String(v ?? '（空）').replace(/\|/g, '｜');
 const evLine = (e: Ev) =>
