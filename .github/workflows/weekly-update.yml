@@ -28,6 +28,8 @@ concurrency:
 jobs:
   update:
     name: ${{ matrix.group }}
+    # 公開 repo（作品集）也有這個檔案但沒有資料，只在私有 repo 執行
+    if: github.repository == 'i71924/twmalllibrary-data'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     strategy:
