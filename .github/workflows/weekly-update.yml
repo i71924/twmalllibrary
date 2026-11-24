@@ -97,6 +97,10 @@ jobs:
           url=$(gh pr create --base main --head "$branch" --title "$TITLE" --body-file "$REPORT_FILE" --label weekly-update \
                 || gh pr view "$branch" --json url -q .url)
           echo "url=$url" >> "$GITHUB_OUTPUT"
+          # 新 PR 已包含舊 PR 的所有變更：收掉這組其他還開著的週更 PR
+          gh pr list --state open --label weekly-update --limit 200 --json number,headRefName \
+            -q ".[] | select(.headRefName | test(\"^weekly/[0-9-]+-${{ matrix.group }}\$\")) | select(.headRefName != \"$branch\") | .number" |
+            while read -r n; do gh pr close "$n" --delete-branch --comment "已有較新的週更 PR（$url），內容已包含這次的變更。"; done
           echo "PR：$url" >> "$GITHUB_STEP_SUMMARY"
 
       - name: 有問題時開 Issue 通知

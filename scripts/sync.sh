@@ -109,6 +109,10 @@ for g in "${TARGETS[@]}"; do
     url=$(gh pr create --base main --head "$branch" --title "$title" --body-file "$report" --label weekly-update 2>/dev/null \
           || gh pr view "$branch" --json url -q .url)
     echo "PR：$url"
+    # 每次都和 main 比對，新 PR 已包含舊 PR 的所有變更：收掉這組其他還開著的週更 PR，避免越積越多
+    gh pr list --state open --label weekly-update --limit 200 --json number,headRefName \
+      -q ".[] | select(.headRefName | test(\"^weekly/[0-9-]+-$g\$\")) | select(.headRefName != \"$branch\") | .number" |
+      while read -r n; do gh pr close "$n" --delete-branch --comment "已有較新的週更 PR（$url），內容已包含這次的變更。" >/dev/null && echo "已關閉過時的 PR #$n"; done
     if [[ "$(get new_brands)" != "0" ]] && command -v claude >/dev/null; then
       npx tsx scripts/brand-review-prompt.ts "raw/weekly-$g-new-brands.txt" > "raw/weekly-$g-prompt.md"
       if claude -p "$(cat "raw/weekly-$g-prompt.md")" > "raw/weekly-$g-review.md"; then

@@ -51,7 +51,7 @@ const MALLS: { id: string; branch: number; name: string; type?: ScrapedMall['bas
     ],
   },
   { id: 'skm-chiayi', branch: 8, name: '新光三越 嘉義垂楊店', buildings: [{ sid: '1331', id: 'main', name: '垂楊店', label: '嘉義垂楊店' }] },
-  { id: 'skm-tainan-zhongshan', branch: 9, name: '新光三越 台南中山店', buildings: [{ sid: '1311', id: 'main', name: '中山店', label: '台南中山店' }] },
+  // 台南中山店 2026-10-31 結束營業（租約期滿），官網已移除分館，不再擷取；資料保留為 status: closed
   {
     id: 'skm-tainan-place',
     branch: 10,
