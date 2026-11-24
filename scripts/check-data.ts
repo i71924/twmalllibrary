@@ -16,12 +16,14 @@ const load = <T>(dir: string, s: { parse: (x: unknown) => T }) =>
 const malls = load('malls', Mall);
 const brands = load('brands', Brand);
 const used = new Map<string, Set<string>>();
+const everUsed = new Set<string>(); // 含已撤櫃的櫃位：只剩歷史資料的品牌不算孤兒
 let units = 0;
 const rows: string[] = [];
 const missing: string[] = [];
 
 for (const m of malls.sort((a, b) => a.group.localeCompare(b.group) || a.name.localeCompare(b.name, 'zh-Hant'))) {
   const us = m.buildings.flatMap((b) => b.floors.flatMap((f) => f.units.filter((u) => !u.closed_on)));
+  for (const b of m.buildings) for (const f of b.floors) for (const u of f.units) for (const id of u.brands) everUsed.add(id);
   units += us.length;
   for (const u of us) for (const b of u.brands) used.set(b, (used.get(b) ?? new Set()).add(m.id));
   const floors = m.buildings.reduce((n, b) => n + b.floors.filter((f) => f.units.length).length, 0);
@@ -30,7 +32,7 @@ for (const m of malls.sort((a, b) => a.group.localeCompare(b.group) || a.name.lo
   if (m.status === 'open' && lack.length) missing.push(`- ${m.name}：缺 ${lack.join('、')}`);
 }
 
-const orphans = brands.filter((b) => !used.has(b.id));
+const orphans = brands.filter((b) => !everUsed.has(b.id));
 const suspicious = brands.filter(
   (b) => b.name.length > 40 || /(分店|[^\p{L}]店$|樓|^\d+$|^[^\p{L}\p{N}]|專櫃$|POP ?UP|期間限定|&[a-z]+;)/iu.test(b.name),
 );
@@ -40,7 +42,15 @@ for (const b of brands) {
   const k = brandKey(b.name.replace(/\p{Script=Han}+/gu, ''));
   if (k.length >= 3) byLatin.set(k, [...(byLatin.get(k) ?? []), b.name]);
 }
-const dupes = [...byLatin.values()].filter((v) => v.length > 1);
+// 人工確認過「不是同一品牌」的組合（副牌、同集團不同店名、手動拆開的），不再列出
+const KNOWN_DISTINCT = [
+  ['1010湘料理', '1010湘食堂'],
+  ['AMA', '杜甲 Ama'],
+  ['OTTO 奧圖', 'OTTO服飾'],
+  ['九州麵処モリちゃん', '博多鉄板屋台モリちゃん'],
+  ['魚君さかなくん海鮮丼專門店', '魚君さかなくん鮮魚專門居酒屋'],
+].map((v) => [...v].sort().join('／'));
+const dupes = [...byLatin.values()].filter((v) => v.length > 1 && !KNOWN_DISTINCT.includes([...v].sort().join('／')));
 const multi = [...used.values()].filter((s) => s.size > 1).length;
 
 const out = [
