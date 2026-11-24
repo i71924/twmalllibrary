@@ -101,7 +101,7 @@ for g in "${TARGETS[@]}"; do
   if [[ "$(get changed)" == "true" ]]; then
     title=$(get title)
     branch="weekly/$TODAY-$g"
-    git switch -q -c "$branch"
+    git switch -q -C "$branch" # 同一天重跑時覆蓋舊分支（-c 會因分支已存在而中斷）
     git add data
     git commit -q -m "$title"
     git push -q -f origin "$branch"
