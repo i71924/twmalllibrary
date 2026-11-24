@@ -105,8 +105,10 @@ for (const { rel, old } of mallFiles) {
   }
   for (const m of missing) {
     const before = oldUnit.get(m.u.uid) as Unit;
-    // 上次檢查時就已經沒看到（last_seen 早於上次檢查日）→ 連續第 2 次不見，確定撤櫃
-    if (before.last_seen < old.meta.last_checked) {
+    // 上次檢查時就已經沒看到（last_seen 早於上次檢查日）→ 連續第 2 次不見，確定撤櫃。
+    // 另外要求最後一次出現距今至少 13 天：同一天重跑（或兩次檢查只隔一兩天）不能算成「兩週沒出現」
+    const daysGone = (Date.parse(d) - Date.parse(before.last_seen)) / 86_400_000;
+    if (before.last_seen < old.meta.last_checked && daysGone >= 13) {
       m.u.closed_on = d;
       closed.push({ mall: cur.name, name: m.u.name_raw, where: loc(m.b, m.f, multi) });
       counts.closed++;
