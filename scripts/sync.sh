@@ -106,8 +106,11 @@ for g in "${TARGETS[@]}"; do
     git commit -q -m "$title"
     git push -q -f origin "$branch"
     gh label create weekly-update --color FDE9E1 --description "每週自動更新" --force >/dev/null
-    url=$(gh pr create --base main --head "$branch" --title "$title" --body-file "$report" --label weekly-update 2>/dev/null \
-          || gh pr view "$branch" --json url -q .url)
+    if ! url=$(gh pr create --base main --head "$branch" --title "$title" --body-file "$report" --label weekly-update 2>/dev/null); then
+      # 同一天重跑：PR 已存在，內容已被覆蓋，標題與說明也要跟著更新（否則會留著舊的 ⚠）
+      url=$(gh pr view "$branch" --json url -q .url)
+      gh pr edit "$url" --title "$title" --body-file "$report" >/dev/null
+    fi
     echo "PR：$url"
     # 每次都和 main 比對，新 PR 已包含舊 PR 的所有變更：收掉這組其他還開著的週更 PR，避免越積越多
     gh pr list --state open --label weekly-update --limit 200 --json number,headRefName \

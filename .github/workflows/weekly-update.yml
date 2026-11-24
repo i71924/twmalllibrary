@@ -94,8 +94,11 @@ jobs:
           git commit -q -m "$TITLE"
           git push -q -f origin "$branch"
           gh label create weekly-update --color FDE9E1 --description "每週自動更新" --force >/dev/null
-          url=$(gh pr create --base main --head "$branch" --title "$TITLE" --body-file "$REPORT_FILE" --label weekly-update \
-                || gh pr view "$branch" --json url -q .url)
+          if ! url=$(gh pr create --base main --head "$branch" --title "$TITLE" --body-file "$REPORT_FILE" --label weekly-update); then
+            # 同一天重跑：PR 已存在，更新標題與說明
+            url=$(gh pr view "$branch" --json url -q .url)
+            gh pr edit "$url" --title "$TITLE" --body-file "$REPORT_FILE"
+          fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
           # 新 PR 已包含舊 PR 的所有變更：收掉這組其他還開著的週更 PR
           gh pr list --state open --label weekly-update --limit 200 --json number,headRefName \
