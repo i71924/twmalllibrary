@@ -1,0 +1,171 @@
+---
+// 商場地圖：全台營業中商場的位置，可依類型篩選，也可以找離自己最近的商場。
+import Base from '../layouts/Base.astro';
+import LeafletHead from '../components/LeafletHead.astro';
+import { MALL_TYPE, db, openUnits } from '../lib/data';
+
+const { malls, groupById } = db();
+const points = malls
+  .filter((m) => m.geo && m.status === 'open')
+  .map((m) => ({
+    id: m.id,
+    name: m.name,
+    lat: m.geo![0],
+    lng: m.geo![1],
+    type: m.type,
+    typeName: MALL_TYPE[m.type],
+    group: groupById.get(m.group)?.name ?? '',
+    area: `${m.city}${m.district ?? ''}`,
+    units: openUnits(m).length,
+  }));
+const types = [...new Set(points.map((p) => p.type))].map((t) => ({ t, name: MALL_TYPE[t], n: points.filter((p) => p.type === t).length }));
+---
+
+<Base title="商場地圖" description="在地圖上查看全台百貨公司、購物中心、Outlet 的位置，找離你最近的商場。">
+  <LeafletHead slot="head" />
+  <h1 class="mb-2 mt-8 text-3xl font-black">商場地圖</h1>
+  <p class="mb-4 text-muted">全台 {points.length} 個營業中的商場，點標記看櫃位數與連結。</p>
+
+  <div class="mb-3 flex flex-wrap items-center gap-1.5 text-sm" id="types">
+    <button type="button" data-type="" class="map-chip" aria-pressed="true">全部 {points.length}</button>
+    {types.map((x) => <button type="button" data-type={x.t} class="map-chip" aria-pressed="false">{x.name} {x.n}</button>)}
+    <button type="button" id="near" class="ml-auto rounded-full bg-brand px-4 py-1.5 font-bold text-white hover:opacity-90">📍 離我最近</button>
+  </div>
+
+  <div id="map" class="h-[65vh] min-h-[360px] w-full overflow-hidden rounded-3xl border border-line bg-paper" aria-label="商場地圖"></div>
+  <p class="mt-2 text-xs text-muted">標記大小代表櫃位數。座標來自 OpenStreetMap。</p>
+
+  <section id="nearest" class="mt-6" hidden>
+    <h2 class="mb-3 text-xl font-black">離你最近的商場</h2>
+    <p id="near-msg" class="mb-2 text-sm text-muted"></p>
+    <ol id="near-list" class="grid gap-2 sm:grid-cols-2"></ol>
+  </section>
+
+  <script is:inline type="application/json" id="points" set:html={JSON.stringify(points)} />
+</Base>
+
+<style is:global>
+  @reference "../styles/global.css";
+  .map-chip {
+    @apply rounded-full border border-line bg-card px-3 py-1.5 transition hover:border-brand;
+  }
+  .map-chip[aria-pressed='true'] {
+    @apply border-brand bg-brand font-bold text-white;
+  }
+  .leaflet-popup-content {
+    font-family: inherit;
+  }
+</style>
+
+<script>
+  type P = { id: string; name: string; lat: number; lng: number; type: string; typeName: string; group: string; area: string; units: number };
+  declare const L: any;
+  const points = JSON.parse(document.getElementById('points')!.textContent!) as P[];
+
+  const map = L.map('map', { scrollWheelZoom: false });
+  // 一開始剛好框住所有商場
+  map.fitBounds(L.latLngBounds(points.map((p) => [p.lat, p.lng])).pad(0.05));
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  }).addTo(map);
+  // 滑鼠移進地圖後才允許滾輪縮放，避免捲動網頁時誤觸
+  map.on('focus click', () => map.scrollWheelZoom.enable());
+
+  const color: Record<string, string> = { department_store: '#e0603f', shopping_mall: '#4c7fd1', outlet: '#3f8f6b' };
+  const popup = (p: P) => {
+    const box = document.createElement('div');
+    const b = document.createElement('b');
+    b.textContent = p.name;
+    const meta = document.createElement('div');
+    meta.style.cssText = 'color:#7a6e66;font-size:12px;margin:2px 0 6px';
+    meta.textContent = `${p.area}・${p.typeName}・${p.units} 個櫃位`;
+    const a = document.createElement('a');
+    a.href = `/malls/${p.id}/`;
+    a.textContent = '看樓層與品牌 →';
+    box.append(b, meta, a);
+    return box;
+  };
+  const markers = points.map((p) => {
+    const m = L.circleMarker([p.lat, p.lng], {
+      radius: Math.max(6, Math.min(16, Math.sqrt(p.units) / 2)),
+      color: '#fff',
+      weight: 2,
+      fillColor: color[p.type] ?? '#8a5cc2',
+      fillOpacity: 0.9,
+    }).bindPopup(() => popup(p));
+    m.addTo(map);
+    return { p, m };
+  });
+
+  // 類型篩選
+  let current = '';
+  document.querySelectorAll<HTMLButtonElement>('#types [data-type]').forEach((btn) =>
+    btn.addEventListener('click', () => {
+      current = btn.dataset.type!;
+      document.querySelectorAll('#types [data-type]').forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+      for (const { p, m } of markers) (current && p.type !== current ? m.remove() : m.addTo(map));
+    }),
+  );
+
+  // 離我最近：只在瀏覽器裡計算，位置不會傳出去
+  const km = (a: [number, number], b: [number, number]) => {
+    const r = Math.PI / 180;
+    const x = Math.sin(((b[0] - a[0]) * r) / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(((b[1] - a[1]) * r) / 2) ** 2;
+    return 12742 * Math.asin(Math.sqrt(x));
+  };
+  const nearBtn = document.getElementById('near') as HTMLButtonElement;
+  const sec = document.getElementById('nearest')!;
+  const msg = document.getElementById('near-msg')!;
+  const list = document.getElementById('near-list')!;
+  let me: any = null;
+  nearBtn.addEventListener('click', () => {
+    sec.hidden = false;
+    list.replaceChildren();
+    if (!navigator.geolocation) {
+      msg.textContent = '這個瀏覽器不支援定位。';
+      return;
+    }
+    msg.textContent = '定位中…（需要你允許瀏覽器使用位置）';
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const here: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+        const near = points
+          .filter((p) => !current || p.type === current)
+          .map((p) => ({ p, d: km(here, [p.lat, p.lng]) }))
+          .sort((a, b) => a.d - b.d)
+          .slice(0, 6);
+        me?.remove();
+        me = L.circleMarker(here, { radius: 7, color: '#fff', weight: 3, fillColor: '#2b2420', fillOpacity: 1 }).addTo(map).bindTooltip('你的位置');
+        map.fitBounds(L.latLngBounds([here, ...near.slice(0, 3).map((x) => [x.p.lat, x.p.lng])]).pad(0.2));
+        msg.textContent = '依直線距離排序。';
+        list.replaceChildren(
+          ...near.map(({ p, d }) => {
+            const li = document.createElement('li');
+            const a = document.createElement('a');
+            a.href = `/malls/${p.id}/`;
+            a.className = 'flex items-center justify-between gap-3 rounded-2xl border border-line bg-card p-3 transition hover:border-brand';
+            const left = document.createElement('span');
+            const b = document.createElement('b');
+            b.className = 'block';
+            b.textContent = p.name;
+            const s = document.createElement('span');
+            s.className = 'text-xs text-muted';
+            s.textContent = `${p.area}・${p.typeName}`;
+            left.append(b, s);
+            const dist = document.createElement('span');
+            dist.className = 'shrink-0 rounded-xl bg-brand-soft px-3 py-1 text-sm font-black text-brand';
+            dist.textContent = d < 1 ? `${Math.round(d * 1000)} 公尺` : `${d.toFixed(1)} 公里`;
+            a.append(left, dist);
+            li.append(a);
+            return li;
+          }),
+        );
+      },
+      () => {
+        msg.textContent = '無法取得位置（可能沒有允許定位）。';
+      },
+      { enableHighAccuracy: false, timeout: 10000 },
+    );
+  });
+</script>

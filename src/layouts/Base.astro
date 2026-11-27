@@ -12,6 +12,7 @@ const nav = [
   { href: '/malls/', label: '商場' },
   { href: '/brands/', label: '品牌' },
   { href: '/categories/', label: '分類' },
+  { href: '/map/', label: '地圖' },
   { href: '/updates/', label: '本週異動' },
 ];
 const path = Astro.url.pathname;
@@ -29,6 +30,7 @@ const path = Astro.url.pathname;
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+    <slot name="head" />
   </head>
   <body class="min-h-screen font-sans antialiased">
     <header class="sticky top-0 z-30 border-b border-line bg-paper/90 backdrop-blur">
@@ -43,7 +45,7 @@ const path = Astro.url.pathname;
               <a
                 href={n.href}
                 class:list={[
-                  'whitespace-nowrap rounded-full px-3 py-1.5 transition hover:bg-brand-soft',
+                  'whitespace-nowrap rounded-full px-2.5 py-1.5 transition hover:bg-brand-soft sm:px-3',
                   path.startsWith(n.href) && 'bg-brand-soft font-bold text-brand',
                 ]}
               >
