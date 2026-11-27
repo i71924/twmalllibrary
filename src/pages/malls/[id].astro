@@ -56,7 +56,10 @@ const info = [
             ))
           }
         </dl>
-        <a href={mall.website} target="_blank" rel="noopener" class="mt-4 inline-block text-sm text-brand">官方網站 ↗</a>
+        <div class="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+          <a href={mall.website} target="_blank" rel="noopener" class="text-brand">官方網站 ↗</a>
+          {units.length > 0 && <a href={`/compare/?a=${mall.id}`} class="text-brand">和其他商場比較 →</a>}
+        </div>
       </div>
       <div class="rounded-3xl border border-line bg-card p-5">
         <h2 class="mb-2 text-xs text-muted">營業時間</h2>

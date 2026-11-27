@@ -10,7 +10,7 @@ const types = Object.entries(MALL_TYPE).filter(([t]) => malls.some((m) => m.type
 
 <Base title="全台商場" description="依縣市與類型瀏覽全台百貨公司、購物中心、Outlet。">
   <h1 class="mb-2 mt-8 text-3xl font-black">全台商場</h1>
-  <p class="mb-6 text-muted">共 <b id="count">{malls.length}</b> 個商場</p>
+  <p class="mb-6 text-muted">共 <b id="count">{malls.length}</b> 個商場・<a href="/compare/" class="text-brand">比較兩個商場 →</a></p>
 
   <div class="mb-6 space-y-3">
     <div class="flex flex-wrap gap-2" data-filter="city">

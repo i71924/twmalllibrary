@@ -1,0 +1,267 @@
+---
+// 商場比較：選兩個商場，並排看櫃位數、業種組成，以及共同／各自獨有的品牌。
+// 網址參數 ?a=<商場id>&b=<商場id>，可以直接分享。
+import Base from '../layouts/Base.astro';
+import { CITY_ORDER, db } from '../lib/data';
+
+const { malls } = db();
+const open = malls.filter((m) => m.status === 'open' && m.buildings.some((b) => b.floors.some((f) => f.units.some((u) => !u.closed_on))));
+const cities = [...new Set(open.map((m) => m.city))].sort((a, b) => CITY_ORDER.indexOf(a) - CITY_ORDER.indexOf(b));
+const byCity = cities.map((c) => ({ city: c, malls: open.filter((m) => m.city === c) }));
+---
+
+<Base title="商場比較" description="選兩個商場並排比較：櫃位數、業種組成，以及兩邊都有和各自獨有的品牌。">
+  <h1 class="mb-2 mt-8 text-3xl font-black">商場比較</h1>
+  <p class="mb-6 text-muted">選兩個商場，看看它們的業種比例，以及哪些品牌兩邊都有、哪些只有一邊有。</p>
+
+  <div class="mb-6 grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+    {
+      ['a', 'b'].map((k, i) => (
+        <>
+          {i === 1 && (
+            <button id="swap" type="button" class="justify-self-center rounded-full border border-line bg-card px-3 py-1 text-sm hover:border-brand" aria-label="交換兩個商場">
+              ⇄
+            </button>
+          )}
+          <label class="block">
+            <span class="mb-1 block text-xs font-bold text-muted">商場 {k.toUpperCase()}</span>
+            <select id={`sel-${k}`} class="w-full rounded-2xl border border-line bg-card px-4 py-3 outline-none focus:border-brand">
+              <option value="">請選擇商場</option>
+              {byCity.map((g) => (
+                <optgroup label={g.city}>
+                  {g.malls.map((m) => <option value={m.id}>{m.name}</option>)}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+        </>
+      ))
+    }
+  </div>
+
+  <p id="hint" class="rounded-2xl border border-dashed border-line p-6 text-center text-sm text-muted">請在上方選兩個不同的商場。</p>
+  <p id="loading" class="p-6 text-center text-sm text-muted" hidden>載入中…</p>
+
+  <div id="result" hidden>
+    <section class="mb-6 grid grid-cols-2 gap-3" id="cards"></section>
+
+    <section class="mb-8 rounded-3xl border border-line bg-card p-5">
+      <h2 class="mb-4 text-xl font-black">業種組成</h2>
+      <div id="mix" class="space-y-4"></div>
+      <ul id="legend" class="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted"></ul>
+    </section>
+
+    <section>
+      <h2 class="mb-3 text-xl font-black">品牌</h2>
+      <div class="mb-3 flex gap-2 overflow-x-auto" role="tablist" id="tabs"></div>
+      <div class="mb-3 flex flex-wrap gap-1.5 text-xs" id="cat-filter"></div>
+      <ul id="list" class="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3 lg:grid-cols-4"></ul>
+    </section>
+  </div>
+</Base>
+
+<script>
+  type Data = {
+    categories: { code: string; name: string; icon: string; color: string }[];
+    brands: [string, string, string][];
+    malls: {
+      id: string;
+      name: string;
+      city: string;
+      district: string | null;
+      type: string;
+      units: number;
+      floors: number;
+      mix: Record<string, number>;
+      brands: number[];
+    }[];
+  };
+
+  const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+  const el = (tag: string, cls = '', text = '') => {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text) e.textContent = text;
+    return e;
+  };
+  const selA = $<HTMLSelectElement>('sel-a');
+  const selB = $<HTMLSelectElement>('sel-b');
+  let data: Data | null = null;
+  let tab: 'both' | 'a' | 'b' = 'both';
+  let cat = '';
+
+  const params = new URLSearchParams(location.search);
+  selA.value = params.get('a') ?? '';
+  selB.value = params.get('b') ?? '';
+
+  async function load() {
+    if (data) return data;
+    $('loading').hidden = false;
+    data = (await (await fetch('/compare-data.json')).json()) as Data;
+    $('loading').hidden = true;
+    return data;
+  }
+
+  async function render() {
+    const a = selA.value;
+    const b = selB.value;
+    const url = new URL(location.href);
+    url.search = new URLSearchParams(Object.entries({ a, b }).filter(([, v]) => v)).toString();
+    history.replaceState(null, '', url);
+    const ready = a && b && a !== b;
+    $('hint').hidden = !!ready;
+    $('hint').textContent = a && a === b ? '請選兩個不同的商場。' : '請在上方選兩個不同的商場。';
+    $('result').hidden = true;
+    if (!ready) return;
+
+    const d = await load();
+    const A = d.malls.find((m) => m.id === a)!;
+    const B = d.malls.find((m) => m.id === b)!;
+    const setB = new Set(B.brands);
+    const setA = new Set(A.brands);
+    const groups = {
+      both: A.brands.filter((i) => setB.has(i)),
+      a: A.brands.filter((i) => !setB.has(i)),
+      b: B.brands.filter((i) => !setA.has(i)),
+    };
+
+    // 基本數字
+    const cards = $('cards');
+    cards.replaceChildren(
+      ...[A, B].map((m, i) => {
+        const c = el('a', 'block rounded-3xl border border-line bg-card p-4 transition hover:border-brand');
+        (c as HTMLAnchorElement).href = `/malls/${m.id}/`;
+        c.append(
+          el('span', 'text-xs font-bold text-brand', `商場 ${i ? 'B' : 'A'}`),
+          el('b', 'block text-base sm:text-lg', m.name),
+          el('span', 'block text-xs text-muted', `${m.city}${m.district ?? ''}・${m.type}`),
+        );
+        const stats = el('div', 'mt-3 grid grid-cols-3 gap-1 text-center');
+        for (const [n, label] of [
+          [m.units, '櫃位'],
+          [m.brands.length, '品牌'],
+          [m.floors, '樓層'],
+        ] as const) {
+          const s = el('div', 'rounded-xl bg-paper p-2');
+          s.append(el('b', 'block text-lg font-black', n.toLocaleString()), el('span', 'text-xs text-muted', label));
+          stats.append(s);
+        }
+        c.append(stats);
+        return c;
+      }),
+    );
+
+    // 業種組成：兩條長條圖
+    const mix = $('mix');
+    mix.replaceChildren(
+      ...[A, B].map((m, i) => {
+        const row = el('div');
+        row.append(el('p', 'mb-1 text-sm font-bold', `${i ? 'B' : 'A'}．${m.name}`));
+        const bar = el('div', 'flex h-4 overflow-hidden rounded-full bg-paper');
+        for (const c of [...d.categories, { code: '', name: '尚未分類', icon: '', color: 'var(--color-line)' }]) {
+          const n = m.mix[c.code] ?? 0;
+          if (!n) continue;
+          const pct = (n / m.units) * 100;
+          const s = el('span');
+          s.style.width = `${pct}%`;
+          s.style.background = c.color;
+          s.title = `${c.name} ${pct < 1 ? '<1' : Math.round(pct)}%`;
+          bar.append(s);
+        }
+        row.append(bar);
+        return row;
+      }),
+    );
+    // 圖例：列出兩邊比例差最多的前幾類
+    const legend = $('legend');
+    legend.replaceChildren(
+      ...d.categories
+        .filter((c) => A.mix[c.code] || B.mix[c.code])
+        .map((c) => {
+          const pa = Math.round(((A.mix[c.code] ?? 0) / A.units) * 100);
+          const pb = Math.round(((B.mix[c.code] ?? 0) / B.units) * 100);
+          const li = el('li', 'flex items-center gap-1.5');
+          const dot = el('span', 'inline-block h-2.5 w-2.5 rounded-sm');
+          dot.style.background = c.color;
+          li.append(dot, el('span', '', `${c.icon} ${c.name} A ${pa}%／B ${pb}%`));
+          return li;
+        }),
+    );
+
+    // 分頁籤
+    const tabs = $('tabs');
+    const tabDefs = [
+      ['both', `兩邊都有 ${groups.both.length}`],
+      ['a', `只有 A 有 ${groups.a.length}`],
+      ['b', `只有 B 有 ${groups.b.length}`],
+    ] as const;
+    tabs.replaceChildren(
+      ...tabDefs.map(([k, label]) => {
+        const t = el('button', 'cmp-tab', label) as HTMLButtonElement;
+        t.type = 'button';
+        t.setAttribute('role', 'tab');
+        t.setAttribute('aria-selected', String(k === tab));
+        t.onclick = () => {
+          tab = k;
+          cat = '';
+          render();
+        };
+        return t;
+      }),
+    );
+
+    // 業種篩選＋品牌清單
+    const list = groups[tab];
+    const cats = d.categories.filter((c) => list.some((i) => d.brands[i][2] === c.code));
+    const filter = $('cat-filter');
+    const chip = (code: string, label: string) => {
+      const c = el(
+        'button',
+        `rounded-full border px-2.5 py-1 ${code === cat ? 'border-brand bg-brand text-white' : 'border-line bg-card hover:border-brand'}`,
+        label,
+      ) as HTMLButtonElement;
+      c.type = 'button';
+      c.onclick = () => {
+        cat = code;
+        render();
+      };
+      return c;
+    };
+    filter.replaceChildren(chip('', '全部'), ...cats.map((c) => chip(c.code, `${c.icon} ${c.name}`)));
+
+    const shown = list.filter((i) => !cat || d.brands[i][2] === cat);
+    const ul = $('list');
+    ul.replaceChildren(
+      ...shown.map((i) => {
+        const [id, name] = d.brands[i];
+        const li = el('li');
+        const a = el('a', 'block truncate rounded-lg px-2 py-1.5 text-sm hover:bg-card', name) as HTMLAnchorElement;
+        a.href = `/brands/${id}/`;
+        li.append(a);
+        return li;
+      }),
+    );
+    if (!shown.length) ul.append(el('li', 'text-sm text-muted', '沒有品牌。'));
+    $('result').hidden = false;
+  }
+
+  selA.addEventListener('change', () => ((tab = 'both'), (cat = ''), render()));
+  selB.addEventListener('change', () => ((tab = 'both'), (cat = ''), render()));
+  $('swap').addEventListener('click', () => {
+    [selA.value, selB.value] = [selB.value, selA.value];
+    if (tab !== 'both') tab = tab === 'a' ? 'b' : 'a';
+    render();
+  });
+  render();
+</script>
+
+<style is:global>
+  @reference "../styles/global.css";
+  /* 比較頁的分頁籤是用程式產生的，所以樣式要設成全域 */
+  .cmp-tab {
+    @apply shrink-0 cursor-pointer rounded-full border border-line bg-card px-4 py-1.5 text-sm font-bold transition;
+  }
+  .cmp-tab[aria-selected='true'] {
+    @apply border-brand bg-brand text-white;
+  }
+</style>
