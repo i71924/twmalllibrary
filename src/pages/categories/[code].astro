@@ -1,0 +1,146 @@
+---
+// 分類頁：大類（例如 food）與中類（例如 food.restaurant）各一頁。
+// 列出這個業種的品牌（依據點數排序），以及這個業種櫃位最多的商場。
+import Base from '../../layouts/Base.astro';
+import BrandAvatar from '../../components/BrandAvatar.astro';
+import { db } from '../../lib/data';
+import type { CategoryNode, Mall } from '../../lib/schema';
+
+export function getStaticPaths() {
+  const { categories } = db();
+  return categories.flatMap((parent) => [
+    { params: { code: parent.code }, props: { parent, child: null } },
+    ...parent.children.map((child) => ({ params: { code: child.code }, props: { parent, child } })),
+  ]);
+}
+
+type Props = { parent: CategoryNode; child: CategoryNode['children'][number] | null };
+const { parent, child } = Astro.props as Props;
+const { brands, locationsByBrand, categoryName } = db();
+const code = child?.code ?? parent.code;
+const title = child ? child.name : parent.name;
+const inCat = (c: string | null) => !!c && (c === code || c.startsWith(code + '.'));
+
+// 品牌：只列目前有營業中櫃位的
+const rows = brands
+  .filter((b) => inCat(b.category))
+  .map((b) => {
+    const locs = locationsByBrand.get(b.id) ?? [];
+    return { b, malls: new Set(locs.map((l) => l.mall.id)).size, sub: categoryName.get(b.category!)?.name };
+  })
+  .filter((r) => r.malls > 0)
+  .sort((a, b) => b.malls - a.malls || a.b.name.localeCompare(b.b.name, 'zh-Hant', { sensitivity: 'base' }));
+
+// 商場：這個業種的營業中櫃位數
+const byMall = new Map<string, { mall: Mall; units: number; brands: Set<string> }>();
+for (const { b } of rows)
+  for (const l of locationsByBrand.get(b.id) ?? []) {
+    const m = byMall.get(l.mall.id) ?? { mall: l.mall, units: 0, brands: new Set<string>() };
+    m.units++;
+    m.brands.add(b.id);
+    byMall.set(l.mall.id, m);
+  }
+const topMalls = [...byMall.values()].sort((a, b) => b.brands.size - a.brands.size).slice(0, 10);
+const maxBrands = topMalls[0]?.brands.size ?? 1;
+
+const subs = parent.children.map((ch) => ({
+  ...ch,
+  n: brands.filter((b) => (b.category === ch.code || b.category?.startsWith(ch.code + '.')) && (locationsByBrand.get(b.id)?.length ?? 0) > 0).length,
+}));
+---
+
+<Base
+  title={`${title}｜業種分類`}
+  description={`全台商場的${title}品牌共 ${rows.length} 個，看看哪些商場的${title}最多。`}
+>
+  <nav class="mt-8 text-sm text-muted">
+    <a href="/categories/" class="hover:text-brand">業種分類</a>
+    {child && <> › <a href={`/categories/${parent.code}/`} class="hover:text-brand">{parent.name}</a></>}
+  </nav>
+  <h1 class="mb-2 mt-2 flex items-center gap-2 text-3xl font-black">
+    <span>{parent.icon}</span>{title}
+  </h1>
+  <p class="mb-5 text-muted">共 {rows.length.toLocaleString()} 個品牌，分布在 {byMall.size} 個商場</p>
+
+  <ul class="mb-8 flex flex-wrap gap-1.5 text-sm">
+    {child && (
+      <li>
+        <a href={`/categories/${parent.code}/`} class="block rounded-full border border-line bg-card px-3 py-1 hover:border-brand">全部{parent.name}</a>
+      </li>
+    )}
+    {subs.map((s) => (
+      <li>
+        <a
+          href={`/categories/${s.code}/`}
+          class:list={[
+            'block rounded-full border px-3 py-1',
+            s.code === code ? 'border-brand bg-brand font-bold text-white' : 'border-line bg-card hover:border-brand',
+          ]}
+        >
+          {s.name} <span class:list={[s.code === code ? 'text-white/80' : 'text-muted']}>{s.n}</span>
+        </a>
+      </li>
+    ))}
+  </ul>
+
+  {topMalls.length > 0 && (
+    <section class="mb-10">
+      <h2 class="mb-3 text-xl font-black">{title}最多的商場</h2>
+      <ol class="grid gap-2 sm:grid-cols-2">
+        {topMalls.map((m, i) => (
+          <li>
+            <a href={`/malls/${m.mall.id}/`} class="block rounded-2xl border border-line bg-card p-3 transition hover:border-brand">
+              <span class="flex items-baseline justify-between gap-3">
+                <b class="truncate"><span class="mr-1 text-muted">{i + 1}.</span>{m.mall.name}</b>
+                <span class="shrink-0 text-sm font-black text-brand">{m.brands.size} 個品牌</span>
+              </span>
+              <span class="mt-2 block h-1.5 rounded-full bg-paper">
+                <span class="block h-full rounded-full bg-brand" style={`width:${Math.max(4, (m.brands.size / maxBrands) * 100)}%`} />
+              </span>
+              <span class="mt-1 block text-xs text-muted">{m.mall.city}{m.mall.district ?? ''}</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )}
+
+  <section>
+    <h2 class="mb-3 text-xl font-black">{title}品牌</h2>
+    <input
+      id="q"
+      type="search"
+      placeholder={`在${title}裡找品牌…`}
+      class="mb-4 w-full rounded-2xl border border-line bg-card px-4 py-3 outline-none focus:border-brand"
+    />
+    <ul class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      {rows.map(({ b, malls, sub }) => (
+        <li data-name={[b.name, b.name_zh, ...b.aliases].filter(Boolean).join(' ').toLowerCase()}>
+          <a href={`/brands/${b.id}/`} class="flex items-center gap-3 rounded-2xl border border-line bg-card p-3 transition hover:border-brand">
+            <BrandAvatar name={b.name} />
+            <span class="min-w-0 flex-1">
+              <b class="block truncate text-sm">{b.name}</b>
+              {!child && <span class="text-xs text-muted">{sub}</span>}
+            </span>
+            <span class="shrink-0 text-right text-xs text-muted"><b class="block text-base text-brand">{malls}</b>個商場</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+    <p id="empty" class="text-muted" hidden>找不到符合的品牌。</p>
+  </section>
+</Base>
+
+<script>
+  const q = document.getElementById('q') as HTMLInputElement | null;
+  q?.addEventListener('input', () => {
+    const v = q.value.trim().toLowerCase();
+    let any = false;
+    document.querySelectorAll<HTMLElement>('li[data-name]').forEach((li) => {
+      const ok = !v || li.dataset.name!.includes(v);
+      li.hidden = !ok;
+      any ||= ok;
+    });
+    document.getElementById('empty')!.hidden = any;
+  });
+</script>
