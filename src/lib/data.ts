@@ -102,3 +102,35 @@ export const initialOf = (name: string) => {
   if (/[0-9]/.test(c)) return '0-9';
   return '中文';
 };
+
+/** 業種大類的代表色（商場頁的業種組成長條圖用） */
+export const CATEGORY_COLOR: Record<string, string> = {
+  food: '#e0603f',
+  fashion: '#4c7fd1',
+  jewelry: '#8a5cc2',
+  beauty: '#c2477a',
+  sports: '#3f8f6b',
+  kids: '#d99a2b',
+  home: '#a0724a',
+  tech: '#2f8c9a',
+  grocery: '#7fa83a',
+  entertainment: '#5b5fc7',
+  service: '#8c8580',
+};
+
+/** 商場營業中櫃位的業種組成（依大類），由多到少；未分類的放最後 */
+export function categoryMix(mall: Mall) {
+  const { brandById, categories } = db();
+  const counts = new Map<string, number>();
+  const units = openUnits(mall);
+  for (const u of units) {
+    const top = brandById.get(u.brands[0])?.category?.split('.')[0] ?? '';
+    counts.set(top, (counts.get(top) ?? 0) + 1);
+  }
+  const rows = categories
+    .filter((c) => counts.get(c.code))
+    .map((c) => ({ code: c.code, name: c.name, icon: c.icon, n: counts.get(c.code)!, color: CATEGORY_COLOR[c.code] ?? '#999' }))
+    .sort((a, b) => b.n - a.n);
+  const other = counts.get('') ?? 0;
+  return { rows, other, total: units.length };
+}
