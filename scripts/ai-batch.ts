@@ -1,6 +1,7 @@
 // 產生一批給 AI 做業種分類的提示（docs/AI-VERIFY.md 提示 D）：挑營業中據點最多、還沒分類的 pending 品牌。
 // 已經出過的品牌（raw/ai/<批次>/brands.txt）不會重複出現，所以每次執行就是下一批。
 // 用法：npx tsx scripts/ai-batch.ts [--size 50]
+//       npx tsx scripts/ai-batch.ts --retry [--min 2]：第二輪，只挑「出過一次、還沒分類」的品牌（--min：至少幾個櫃位）
 // 輸出：raw/ai/<日期>-<序號>/prompt.md（整份貼給 AI）、brands.txt（這批的品牌 id）
 import fs from 'node:fs';
 import path from 'node:path';
@@ -11,6 +12,8 @@ import { DATA, loadBrands, loadMalls } from './lib/brands.ts';
 
 const argv = process.argv.slice(2);
 const SIZE = Number(argv[argv.indexOf('--size') + 1]) || 50;
+const RETRY = argv.includes('--retry');
+const MIN = argv.includes('--min') ? Number(argv[argv.indexOf('--min') + 1]) : 1;
 const AI_DIR = path.join(ROOT, 'raw/ai');
 
 // 擷取時誤收的網頁文字、樓層名稱，不是品牌
@@ -40,13 +43,15 @@ for (const { m } of malls)
       }
 
 // 之前批次出過的品牌
-const done = new Set<string>();
+const asked = new Map<string, number>(); // 品牌 id → 出過幾次
 const batches = fs.existsSync(AI_DIR) ? fs.readdirSync(AI_DIR).filter((d) => fs.existsSync(path.join(AI_DIR, d, 'brands.txt'))) : [];
-for (const d of batches) for (const id of fs.readFileSync(path.join(AI_DIR, d, 'brands.txt'), 'utf8').split('\n')) if (id) done.add(id);
+for (const d of batches) for (const id of fs.readFileSync(path.join(AI_DIR, d, 'brands.txt'), 'utf8').split('\n')) if (id) asked.set(id, (asked.get(id) ?? 0) + 1);
+// 一般模式：沒出過的；第二輪：剛好出過一次的（第二輪也沒結果就不再出）
+const eligible = (id: string) => (RETRY ? asked.get(id) === 1 : !asked.has(id));
 
 const pick = [...brands.values()]
   .map((e) => e.b)
-  .filter((b) => b.review === 'pending' && !b.category && !done.has(b.id) && !NOT_BRAND.test(b.name.trim()) && (locs.get(b.id) ?? 0) > 0)
+  .filter((b) => b.review === 'pending' && !b.category && eligible(b.id) && !NOT_BRAND.test(b.name.trim()) && (locs.get(b.id) ?? 0) >= Math.max(1, MIN))
   .sort((a, b) => (locs.get(b.id) ?? 0) - (locs.get(a.id) ?? 0) || a.id.localeCompare(b.id))
   .slice(0, SIZE);
 if (!pick.length) {
